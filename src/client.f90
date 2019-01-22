@@ -193,7 +193,9 @@ contains
     ! Convert a json to a string
     ! This function is missing in fson...
     ! Return an allocated string.
-    ! Funny note: trim(adjustl(s)) is needed for really trim a string (trim is only for the right)
+    ! Funny notes:
+    !     - trim(adjustl(s)) is needed for really trim a string (trim is only for the right)
+    !     - Static strings have to be trim like in MATLAB which also cause issue with withspaces...
     recursive function fson_value_toString(this) result(jsonStr)
         use fson_value_m
         use fson_string_m
@@ -209,15 +211,11 @@ contains
                 count = fson_value_count(this)
                 element => this%children
                 do i = 1, count
-                    ! get the name
                     call fson_string_copy(element % name, tmpChars)
-                    ! write the name
                     jsonStr = jsonStr // '"' // trim(tmpChars) // '": '
-                    ! recursive write of the element
                     tmpJsonStr = fson_value_toString(element)
                     jsonStr = jsonStr // tmpJsonStr
                     deallocate(tmpJsonStr)
-                    ! write the separator if required
                     if (i < count) then
                         jsonStr = jsonStr // ", "
                     end if
@@ -230,11 +228,9 @@ contains
                 count = fson_value_count(this)
                 element => this%children
                 do i = 1, count
-                    ! recursive write of the element
                     tmpJsonStr = fson_value_toString(element)
                     jsonStr = jsonStr // tmpJsonStr
                     deallocate(tmpJsonStr)
-                    ! write the separator if required
                     if (i < count) then
                         jsonStr = jsonStr // ", "
                     end if
