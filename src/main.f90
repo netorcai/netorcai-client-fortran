@@ -12,6 +12,7 @@ program test
 
     jsonValue => cli%recvJson()
     print *, "received !"
-    call cli%sendJson(jsonValue)
+    !call cli%sendJson(jsonValue)
+    call cli%sendLogin("zep""hyr", "master")
     call cli%close()
 end program test

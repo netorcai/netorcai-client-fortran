@@ -20,6 +20,10 @@ module netorcai_client
         procedure :: sendString => client_sendString
         procedure :: recvJson => client_recvJson
         procedure :: sendJson => client_sendJson
+        procedure :: sendLogin => client_sendLogin
+        procedure :: sendTurnAck => client_sendTurnAck
+        procedure :: sendDoInitAck => client_sendDoInitAck
+        procedure :: sendDoTurnAck => client_sendDoTurnAck
     end type Client
 contains
     ! Constructor. Initializes a TCP socket.
@@ -190,6 +194,32 @@ contains
         call this%sock%send_all(achar(10))
     end subroutine client_sendString
 
+    ! Replace all occurences of seekStr by replaceStr in str and return the result
+    ! Does not exists in FORTRAN...
+    ! Return an allocated string that should be deallocated by the user
+    function strReplace(str, seekStr, replaceStr) result(outStr)
+        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: seekStr
+        character(len=*), intent(in) :: replaceStr
+        character(len=:), allocatable :: outStr
+        integer :: i
+
+        outStr = ""
+        i = 1
+
+        ! Naive algorithm (very inefficient)
+        do while(i <= len(str))
+            if(str(i:min(i+len(seekStr)-1,len(str))) == seekStr) then
+                outStr = outStr // replaceStr
+                i = i + len(seekStr)
+            else
+                outStr = outStr // str(i:i)
+                i = i + 1
+            end if
+        end do
+    end function strReplace
+
+    ! WARNING: escape string required
     ! Convert a json to a string
     ! This function is missing in fson...
     ! Return an allocated string.
@@ -201,8 +231,8 @@ contains
         use fson_string_m
         type(fson_value), pointer :: this, element
         character(len=:), allocatable :: jsonStr
-        character(len=:), allocatable :: tmpJsonStr
-        character (len = 1024) :: tmpChars
+        character(len=1024) :: tmpStr1 ! Name and string values should not be too big... 
+        character(len=:), allocatable :: tmpStr2
         integer :: i, count
 
         select case(this % value_type)
@@ -211,11 +241,13 @@ contains
                 count = fson_value_count(this)
                 element => this%children
                 do i = 1, count
-                    call fson_string_copy(element % name, tmpChars)
-                    jsonStr = jsonStr // '"' // trim(tmpChars) // '": '
-                    tmpJsonStr = fson_value_toString(element)
-                    jsonStr = jsonStr // tmpJsonStr
-                    deallocate(tmpJsonStr)
+                    call fson_string_copy(element % name, tmpStr1)
+                    tmpStr2 = strReplace(tmpStr1, '"', '\"')
+                    jsonStr = jsonStr // '"' // trim(tmpStr2) // '": '
+                    deallocate(tmpStr2)
+                    tmpStr2 = fson_value_toString(element)
+                    jsonStr = jsonStr // tmpStr2
+                    deallocate(tmpStr2)
                     if (i < count) then
                         jsonStr = jsonStr // ", "
                     end if
@@ -228,9 +260,9 @@ contains
                 count = fson_value_count(this)
                 element => this%children
                 do i = 1, count
-                    tmpJsonStr = fson_value_toString(element)
-                    jsonStr = jsonStr // tmpJsonStr
-                    deallocate(tmpJsonStr)
+                    tmpStr2 = fson_value_toString(element)
+                    jsonStr = jsonStr // tmpStr2
+                    deallocate(tmpStr2)
                     if (i < count) then
                         jsonStr = jsonStr // ", "
                     end if
@@ -240,8 +272,10 @@ contains
             case(TYPE_NULL)
                 jsonStr = jsonStr // "null"
             case (TYPE_STRING)
-                call fson_string_copy(this % value_string, tmpChars)
-                jsonStr = jsonStr // '"' // trim(tmpChars) // '"'
+                call fson_string_copy(this % value_string, tmpStr1)
+                tmpStr2 = strReplace(tmpStr1, '"', '\"')
+                jsonStr = jsonStr // '"' // trim(tmpStr2) // '"'
+                deallocate(tmpStr2)
             case(TYPE_LOGICAL)
                 if(this % value_logical) then
                     jsonStr = jsonStr // "true"
@@ -249,11 +283,11 @@ contains
                     jsonStr = jsonStr // "false"
                 end if
             case(TYPE_INTEGER)
-                write(tmpChars, *) this % value_long_integer
-                jsonStr = jsonStr // trim(adjustl(tmpChars))
+                write(tmpStr1, *) this % value_long_integer
+                jsonStr = jsonStr // trim(adjustl(tmpStr1))
             case(TYPE_REAL)
-                write(tmpChars, *) this % value_double
-                jsonStr = jsonStr // trim(adjustl(tmpChars))
+                write(tmpStr1, *) this % value_double
+                jsonStr = jsonStr // trim(adjustl(tmpStr1))
         end select
     end function fson_value_toString
 
@@ -268,41 +302,136 @@ contains
         deallocate(jsonStr)
     end subroutine client_sendJson
 
-!    ! Send a LOGIN message on the client socket. Crash on error.
-!    void sendLogin(in string nickname, in string role)
-!    {
-!        JSONValue msg = ["message_type" : "LOGIN", "nickname" : nickname, "role" : role];
-!
-!        sendJson(msg);
-!    }
-!
-!    ! Send a TURN_ACK message on the client socket. Crash on error.
-!    void sendTurnAck(in int turnNumber, in JSONValue actions)
-!    {
-!        JSONValue msg = ["message_type" : "TURN_ACK"];
-!        msg.object["turn_number"] = turnNumber;
-!        msg.object["actions"] = actions;
-!
-!        sendJson(msg);
-!    }
-!
-!    ! Send a DO_INIT_ACK message on the client socket. Crash on error.
-!    void sendDoInitAck(in JSONValue initialGameState)
-!    {
-!        JSONValue msg = ["message_type" : "DO_INIT_ACK"];
-!        msg.object["initial_game_state"] = initialGameState;
-!
-!        sendJson(msg);
-!    }
-!
-!    ! Send a DO_TURN_ACK message on the client socket. Crash on error.
-!    void sendDoTurnAck(in JSONValue gameState, in int winnerPlayerID)
-!    {
-!        JSONValue msg = ["message_type" : "DO_TURN_ACK"];
-!        msg.object["winner_player_id"] = winnerPlayerID;
-!        msg.object["game_state"] = gameState;
-!
-!        sendJson(msg);
-!    }
+    ! Missing fson helper function...
+    function fson_value_create_struct() result(jsonValue)
+        use fson_value_m
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_OBJECT
+    end function fson_value_create_struct
+
+    ! Missing fson helper function...
+    subroutine fson_value_add_pair(jsonStruct, nodeName, jsonNode)
+        use fson_value_m
+        use fson_string_m
+        type(fson_value), pointer, intent(in) :: jsonStruct
+        character(len=*), intent(in) :: nodeName
+        type(fson_value), pointer, intent(in) :: jsonNode
+
+        jsonNode%name => fson_string_create()
+        call fson_string_append(jsonNode%name, nodeName)
+        call fson_value_add(jsonStruct, jsonNode)
+    end subroutine fson_value_add_pair
+
+    ! Missing fson helper function...
+    function fson_value_create_array() result(jsonValue)
+        use fson_value_m
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_ARRAY
+    end function fson_value_create_array
+
+    ! Missing fson helper function...
+    function fson_value_create_string(value) result(jsonValue)
+        use fson_value_m
+        use fson_string_m
+        character(len=*), intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_STRING
+        jsonValue%value_string => fson_string_create()
+        call fson_string_append(jsonValue%value_string, value)
+    end function fson_value_create_string
+
+    ! Missing fson helper function...
+    function fson_value_create_integer(value) result(jsonValue)
+        use fson_value_m
+        integer, intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_INTEGER
+        jsonValue%value_integer = value
+    end function fson_value_create_integer
+
+    ! Missing fson helper function...
+    function fson_value_create_real(value) result(jsonValue)
+        use fson_value_m
+        real, intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_INTEGER
+        jsonValue%value_real = value
+    end function fson_value_create_real
+
+    ! Send a LOGIN message on the client socket. Crash on error.
+    subroutine client_sendLogin(this, nickname, role)
+        use fson_value_m
+        class(Client), intent(inout) :: this
+        character(len=*), intent(in) :: nickname
+        character(len=*), intent(in) :: role
+        type(fson_value), pointer :: msg
+
+        msg => fson_value_create_struct()
+        call fson_value_add_pair(msg, "message_type", fson_value_create_string("LOGIN"))
+        call fson_value_add_pair(msg, "nickname", fson_value_create_string(nickname))
+        call fson_value_add_pair(msg, "role", fson_value_create_string(role))
+
+        call this%sendJson(msg)
+        call fson_value_destroy(msg)
+    end subroutine client_sendLogin
+
+    ! Send a TURN_ACK message on the client socket. Crash on error.
+    subroutine client_sendTurnAck(this, turnNumber, actions)
+        use fson_value_m
+        class(Client), intent(inout) :: this
+        integer, intent(in) :: turnNumber
+        type(fson_value), pointer, intent(in) :: actions
+        type(fson_value), pointer :: msg
+
+        msg => fson_value_create_struct()
+        call fson_value_add_pair(msg, "message_type", fson_value_create_string("TURN_ACK"))
+        call fson_value_add_pair(msg, "turn_number", fson_value_create_integer(turnNumber))
+        call fson_value_add_pair(msg, "actions", actions)
+
+        call this%sendJson(msg)
+        call fson_value_destroy(msg)
+    end subroutine client_sendTurnAck
+
+    ! Send a DO_INIT_ACK message on the client socket. Crash on error.
+    subroutine client_sendDoInitAck(this, initialGameState)
+        use fson_value_m
+        class(Client), intent(inout) :: this
+        type(fson_value), pointer, intent(in) :: initialGameState
+        type(fson_value), pointer :: msg
+
+        msg => fson_value_create_struct()
+        call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_INIT_ACK"))
+        call fson_value_add_pair(msg, "initial_game_state", initialGameState)
+
+        call this%sendJson(msg)
+        call fson_value_destroy(msg)
+    end subroutine client_sendDoInitAck
+
+    ! Send a DO_TURN_ACK message on the client socket. Crash on error.
+    subroutine client_sendDoTurnAck(this, gameState, winnerPlayerID)
+        use fson_value_m
+        class(Client), intent(inout) :: this
+        type(fson_value), pointer, intent(in) :: gameState
+        integer, intent(in) :: winnerPlayerID
+        type(fson_value), pointer :: msg
+
+        msg => fson_value_create_struct()
+        call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_TURN_ACK"))
+        call fson_value_add_pair(msg, "winner_player_id", fson_value_create_integer(winnerPlayerID))
+        call fson_value_add_pair(msg, "game_state", gameState)
+
+        call this%sendJson(msg)
+        call fson_value_destroy(msg)
+    end subroutine client_sendDoTurnAck
 end module netorcai_client
 
