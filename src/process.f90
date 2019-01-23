@@ -2,6 +2,7 @@
 !     - https://stackoverflow.com/questions/10305689/sockets-programming-gfortran/10306821
 !     - https://stackoverflow.com/questions/24726446/how-to-call-a-c-function-in-fortran-and-properly-pass-uint32-t-arguments
 !     - http://www.fortran.bcs.org/2015/suggestion_string_handling.pdf
+!     - https://stackoverflow.com/questions/50149805/do-i-need-to-flush-named-pipes
 !     - https://github.com/lukeasrodgers/fortran-server
 
 module netorcai_process
@@ -20,7 +21,6 @@ module netorcai_process
         procedure :: writeLine => process_writeLine
         procedure :: readData => process_readData
         procedure :: writeData => process_writeData
-        procedure :: flush => process_flush
         procedure :: wait => process_wait
         procedure :: kill => process_kill
     end type Process
@@ -141,16 +141,6 @@ contains
 
         res = int(stdc_write(this%writePipe, c_loc(buffer), int(len(buffer), kind=c_size_t)))
     end function process_writeData
-
-    ! Flush the process pipes. Crash on error.
-    subroutine process_flush(this)
-        class(Process), intent(inout) :: this
-
-        if(stdc_fsync(this%writePipe) < 0) then
-            print *, "Error: fsync() failure"
-            stop 1
-        end if
-    end subroutine process_flush
 
     ! Wait the process pid. Crash on error.
     ! Return the process' status.

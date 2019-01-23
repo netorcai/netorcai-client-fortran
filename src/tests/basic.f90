@@ -74,7 +74,6 @@ contains
 
         ! Run game
         call netorcaiProcess%writeLine("start")
-        !call netorcaiProcess%flush() ! buggy and not required in practice
 
         doInit = gameLogic%readDoInit()
         jsonValue => fson_parse(str='{"all_clients": {"gl": "D"}}')
