@@ -1,7 +1,7 @@
 ! Interface of the fson library
 ! Add extensions to create and serialize json documents (missing in fson)
 module netorcai_json
-    use fson, only: fson_value, fson_parse, fson_get
+    use fson, only: fson_value, fson_parse, fson_get, fson_destroy
     use fson_value_m
     use fson_string_m
     use netorcai_utils, only: utils_strReplace
@@ -13,9 +13,9 @@ module netorcai_json
     public :: fson_value
     public :: fson_parse
     public :: fson_get
+    public :: fson_destroy
     public :: fson_value_count
     public :: fson_value_get
-    public :: fson_value_destroy
 
     ! Fun note: if lines are too long, FORTRAN fail at compile time...
     public :: fson_value_toString
@@ -37,6 +37,8 @@ contains
         character(len=1024) :: tmpStr1 ! Name and string values should not be too big... 
         character(len=:), allocatable :: tmpStr2
         integer :: i, count
+
+        jsonStr = ""
 
         select case(this % value_type)
             case(TYPE_OBJECT)

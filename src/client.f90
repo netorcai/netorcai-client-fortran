@@ -207,7 +207,7 @@ contains
 
         contentSize = len(message) + 1
         if(contentSize >= 65536) then
-            write(*,*) "Content size ", contentSize, " does not fit in 16 bits"
+            print *, "Error: content size ", contentSize, " does not fit in 16 bits"
             stop 1
         end if
 
@@ -244,7 +244,7 @@ contains
         call fson_value_add_pair(msg, "role", fson_value_create_string(role))
 
         call this%sendJson(msg)
-        call fson_value_destroy(msg)
+        call fson_destroy(msg)
     end subroutine client_sendLogin
 
     ! Send a TURN_ACK message on the client socket. Crash on error.
@@ -260,7 +260,7 @@ contains
         call fson_value_add_pair(msg, "actions", actions)
 
         call this%sendJson(msg)
-        call fson_value_destroy(msg)
+        call fson_destroy(msg)
     end subroutine client_sendTurnAck
 
     ! Send a DO_INIT_ACK message on the client socket. Crash on error.
@@ -274,7 +274,7 @@ contains
         call fson_value_add_pair(msg, "initial_game_state", initialGameState)
 
         call this%sendJson(msg)
-        call fson_value_destroy(msg)
+        call fson_destroy(msg)
     end subroutine client_sendDoInitAck
 
     ! Send a DO_TURN_ACK message on the client socket. Crash on error.
@@ -290,7 +290,7 @@ contains
         call fson_value_add_pair(msg, "game_state", gameState)
 
         call this%sendJson(msg)
-        call fson_value_destroy(msg)
+        call fson_destroy(msg)
     end subroutine client_sendDoTurnAck
 end module netorcai_client
 

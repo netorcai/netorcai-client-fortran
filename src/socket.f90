@@ -30,7 +30,7 @@ contains
         character(len=:), allocatable, target :: errStr
 
         if(result < 0) then
-            errStr = c_char_"Critical error occured in function " // funcName // c_null_char
+            errStr = c_char_"Critical error in function " // funcName // c_null_char
             call stdc_perror(c_loc(errStr))
             stop 1 ! standard way to exit a program
         end if
@@ -64,7 +64,7 @@ contains
         integer(c_int) :: tmpRes
 
         if(port < 0 .or. port > 65536) then
-            print *, "Invalid port"
+            print *, "Error: invalid port"
             stop 1
         end if
 
@@ -74,7 +74,7 @@ contains
         tmpRes = stdc_inet_aton(c_loc(cstring), c_loc(addr%sin_addr))
 
         if(tmpRes == 0) then
-            print *, "Invalid IPv4 address"
+            print *, "Error: invalid IPv4 address"
             stop 1
         end if
 
@@ -146,7 +146,7 @@ contains
             localSent = this%send(buffer(imin+sent:imax))
 
             if(localSent == 0) then
-                print *, "Broken connection during transfer (sending data)"
+                print *, "Error: broken connection during transfer (sending data)"
                 stop 1
             end if
 
@@ -176,7 +176,7 @@ contains
             localReceived = this%recv(buffer(imin+received:imax))
 
             if(localReceived == 0) then
-                print *, "Broken connection during transfer (receiving data)"
+                print *, "Error: broken connection during transfer (receiving data)"
                 stop 1
             end if
 

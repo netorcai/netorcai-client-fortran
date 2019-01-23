@@ -12,10 +12,18 @@
 !     - https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gfortran/Working-with-Pointers.html
 
 module stdc
-    use, intrinsic :: ISO_C_BINDING
+    use, intrinsic :: iso_c_binding
 
     implicit none
     public
+
+    integer(c_int), parameter :: STDIN_FILENO = 0
+    integer(c_int), parameter :: STDOUT_FILENO = 1
+    integer(c_int), parameter :: STDERR_FILENO = 2
+
+    integer(c_int), parameter :: SIGKILL = 9
+    integer(c_int), parameter :: SIGTERM = 15
+    integer(c_int), parameter :: PR_SET_PDEATHSIG = 1
 
     integer(c_int), parameter :: AF_UNSPEC = 0
     integer(c_int), parameter :: AF_UNIX = 1
@@ -150,5 +158,99 @@ module stdc
             use, intrinsic :: iso_c_binding
             type(c_ptr), value :: s
         end subroutine stdc_perror
+
+        ! pid_t fork(void)
+        integer(c_int) function stdc_fork() bind(c, name='fork')
+            use, intrinsic :: iso_c_binding
+        end function stdc_fork
+
+        ! int execv(const char* path, char* const argv[])
+        integer(c_int) function stdc_execv(path, argv) bind(c, name='execv')
+            use, intrinsic :: iso_c_binding
+            type(c_ptr), value, intent(in) :: path
+            type(c_ptr), value, intent(in) :: argv
+        end function stdc_execv
+
+        ! int execvp(const char* path, char* const argv[])
+        integer(c_int) function stdc_execvp(path, argv) bind(c, name='execvp')
+            use, intrinsic :: iso_c_binding
+            type(c_ptr), value, intent(in) :: path
+            type(c_ptr), value, intent(in) :: argv
+        end function stdc_execvp
+
+        ! int pipe2(int pipefd[2], int flags)
+        integer(c_int) function stdc_pipe(pipefd, flags) bind(c, name='pipe')
+            use, intrinsic :: iso_c_binding
+            type(c_ptr), value, intent(in) :: pipefd
+            integer(c_int), value, intent(in) :: flags
+        end function stdc_pipe
+
+        ! int dup2(int oldfd, int newfd)
+        integer(c_int) function stdc_dup2(oldfd, newfd) bind(c, name='dup2')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value, intent(in) :: oldfd
+            integer(c_int), value, intent(in) :: newfd
+        end function stdc_dup2
+
+        ! int prctl(int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5)
+        integer(c_int) function stdc_prctl(option, arg2, arg3, arg4, arg5) bind(c, name='prctl')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value, intent(in) :: option
+            integer(c_long), value, intent(in) :: arg2
+            integer(c_long), value, intent(in) :: arg3
+            integer(c_long), value, intent(in) :: arg4
+            integer(c_long), value, intent(in) :: arg5
+        end function stdc_prctl
+
+        ! pid_t waitpid(pid_t pid, int* wstatus, int options)
+        integer(c_int) function stdc_waitpid(pid, wstatus, options) bind(c, name='waitpid')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: pid
+            type(c_ptr), value :: wstatus
+            integer(c_int), value :: options
+        end function stdc_waitpid
+
+        ! int kill(pid_t pid, int sig)
+        integer(c_int) function stdc_kill(pid, sig) bind(c, name='kill')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: pid
+            integer(c_int), value :: sig
+        end function stdc_kill
+
+        ! ssize_t getline(char** lineptr, size_t* n, FILE* stream)
+        integer(c_size_t) function stdc_getline(lineptr, n, stream) bind(c, name='getline')
+            use, intrinsic :: iso_c_binding
+            type(c_ptr), value :: lineptr
+            type(c_ptr), value :: n
+            type(c_ptr), value :: stream
+        end function stdc_getline
+
+        ! ssize_t read(int fd, void* buf, size_t count)
+        integer(c_size_t) function stdc_read(fd, buf, count) bind(c, name='read')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: fd
+            type(c_ptr), value :: buf
+            integer(c_size_t), value :: count
+        end function stdc_read
+
+        ! ssize_t write(int fd, const void* buf, size_t count)
+        integer(c_size_t) function stdc_write(fd, buf, count) bind(c, name='write')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: fd
+            type(c_ptr), value :: buf
+            integer(c_size_t), value :: count
+        end function stdc_write
+
+        ! int fsync(int fd)
+        integer(c_int) function stdc_fsync(fd) bind(c, name='fsync')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: fd
+        end function stdc_fsync
+
+        ! unsigned int sleep(unsigned int seconds)
+        integer(c_int) function stdc_sleep(seconds) bind(c, name='sleep')
+            use, intrinsic :: iso_c_binding
+            integer(c_int), value :: seconds
+        end function stdc_sleep
     end interface
 end module stdc
