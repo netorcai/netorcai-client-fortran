@@ -18,12 +18,13 @@ contains
         type(Process) :: netorcaiProcess
         character(len=:), allocatable :: line
 
+        ! Note: use --fast or else --delay-turns=50
         call netorcaiProcess%start("netorcai &
             &--simple-prompt &
             &--delay-first-turn=50 &
-            &--delay-turns=50 &
-            &--nb-turns-max=2 &
-            &--nb-players-max=16");
+            &--fast &
+            &--nb-turns-max=500 &
+            &--nb-players-max=16")
 
         ! Wait for connection to be possible
         line = netorcaiProcess%readLine()
