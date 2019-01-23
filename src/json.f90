@@ -19,12 +19,15 @@ module netorcai_json
 
     ! Fun note: if lines are too long, FORTRAN fail at compile time...
     public :: fson_value_toString
+    public :: fson_value_copy
     public :: fson_value_create_struct
     public :: fson_value_add_pair
+    public :: fson_value_create_null
     public :: fson_value_create_array
     public :: fson_value_create_string
     public :: fson_value_create_integer
     public :: fson_value_create_real
+    public :: fson_value_create_logical
 contains
     ! Serialize a json document: convert it to a string
     ! Return an allocated string that should be deallocated by the user.
@@ -40,13 +43,13 @@ contains
 
         jsonStr = ""
 
-        select case(this % value_type)
+        select case(this%value_type)
             case(TYPE_OBJECT)
                 jsonStr = jsonStr // "{"
                 count = fson_value_count(this)
                 element => this%children
                 do i = 1, count
-                    call fson_string_copy(element % name, tmpStr1)
+                    call fson_string_copy(element%name, tmpStr1)
                     tmpStr2 = utils_strReplace(tmpStr1, '"', '\"')
                     jsonStr = jsonStr // '"' // trim(tmpStr2) // '": '
                     deallocate(tmpStr2)
@@ -77,24 +80,72 @@ contains
             case(TYPE_NULL)
                 jsonStr = jsonStr // "null"
             case (TYPE_STRING)
-                call fson_string_copy(this % value_string, tmpStr1)
+                call fson_string_copy(this%value_string, tmpStr1)
                 tmpStr2 = utils_strReplace(tmpStr1, '"', '\"')
                 jsonStr = jsonStr // '"' // trim(tmpStr2) // '"'
                 deallocate(tmpStr2)
             case(TYPE_LOGICAL)
-                if(this % value_logical) then
+                if(this%value_logical) then
                     jsonStr = jsonStr // "true"
                 else
                     jsonStr = jsonStr // "false"
                 end if
             case(TYPE_INTEGER)
-                write(tmpStr1, *) this % value_long_integer
+                write(tmpStr1, *) this%value_integer
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
             case(TYPE_REAL)
-                write(tmpStr1, *) this % value_double
+                write(tmpStr1, *) this%value_double
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
         end select
     end function fson_value_toString
+
+    ! Copy recursively the json structure.
+    ! Useful to create new json document and better manage their destruction. 
+    recursive function fson_value_copy(this) result(jsonNodeCopy)
+        type(fson_value), pointer :: this, element
+        type(fson_value), pointer :: jsonNodeCopy
+        character(len=1024) :: tmpStr ! Name and string values should not be too big... 
+        integer :: i, count
+
+        select case(this%value_type)
+            case(TYPE_OBJECT)
+                jsonNodeCopy => fson_value_create_struct()
+                count = fson_value_count(this)
+                element => this%children
+                do i = 1, count
+                    call fson_string_copy(element%name, tmpStr)
+                    call fson_value_add_pair(jsonNodeCopy, tmpStr, fson_value_copy(element))
+                    element => element%next
+                end do
+            case(TYPE_ARRAY)
+                jsonNodeCopy => fson_value_create_array()
+                count = fson_value_count(this)
+                element => this%children
+                do i = 1, count
+                    call fson_value_add(jsonNodeCopy, fson_value_copy(element))
+                    element => element%next
+                end do
+            case(TYPE_NULL)
+                jsonNodeCopy => fson_value_create_null()
+            case (TYPE_STRING)
+                call fson_string_copy(this%value_string, tmpStr)
+                jsonNodeCopy => fson_value_create_string(tmpStr)
+            case(TYPE_LOGICAL)
+                jsonNodeCopy => fson_value_create_logical(this%value_logical)
+            case(TYPE_INTEGER)
+                jsonNodeCopy => fson_value_create_integer(this%value_integer)
+            case(TYPE_REAL)
+                jsonNodeCopy => fson_value_create_real(this%value_real)
+        end select
+    end function fson_value_copy
+
+    ! Create and return a new json null node.
+    function fson_value_create_null() result(jsonValue)
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_NULL
+    end function fson_value_create_null
 
     ! Create and return a new json struct node.
     ! Struct nodes contain pairs added with fson_value_add_pair.
@@ -155,5 +206,15 @@ contains
         jsonValue%value_type = TYPE_INTEGER
         jsonValue%value_real = value
     end function fson_value_create_real
+
+    ! Create and return a new json null node.
+    function fson_value_create_logical(value) result(jsonValue)
+        logical, intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_LOGICAL
+        jsonValue%value_logical = value
+    end function fson_value_create_logical
 end module netorcai_json
 

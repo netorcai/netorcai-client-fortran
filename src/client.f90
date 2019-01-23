@@ -95,7 +95,7 @@ contains
 
     subroutine client_checkMessageType(jsonMsg, targetMessageTypes)
         type(fson_value), pointer :: jsonMsg
-        type(String), dimension(1) :: targetMessageTypes
+        type(String), dimension(:) :: targetMessageTypes
         character(len=256) :: messageType
         character(len=256) :: kickReason
         integer :: i
@@ -132,6 +132,7 @@ contains
         jsonMsg => this%recvJson()
         call client_checkMessageType(jsonMsg, (/String("LOGIN_ACK")/))
         res = LoginAckMessage()
+        call fson_destroy(jsonMsg)
     end function client_readLoginAck
 
     ! Reads a GAME_STARTS message on the client socket. Crash on error.
@@ -143,11 +144,13 @@ contains
         jsonMsg => this%recvJson()
         call client_checkMessageType(jsonMsg, (/String("GAME_STARTS")/))
         res = message_parseGameStarts(jsonMsg)
+        call fson_destroy(jsonMsg)
     end function client_readGameStarts
 
     ! Reads a TURN message on the client socket. Crash on error.
-    function client_readTurn(this) result(res)
+    function client_readTurn(this, endOfGame) result(res)
         class(Client), intent(inout) :: this
+        logical, intent(out) :: endOfGame
         type(TurnMessage) :: res
         type(fson_value), pointer :: jsonMsg
         character(len=256) :: messageType
@@ -156,12 +159,13 @@ contains
         call client_checkMessageType(jsonMsg, (/String("TURN"), String("GAME_ENDS")/))
         call fson_get(jsonMsg, "message_type", messageType)
 
-        if(trim(messageType) == "GAME_ENDS") then
-            print *, "Received ""Game over"" from the server"
-            STOP 1
+        endOfGame = trim(messageType) == "GAME_ENDS"
+
+        if(.not. endOfGame) then
+            res = message_parseTurn(jsonMsg)
         end if
 
-        res = message_parseTurn(jsonMsg)
+        call fson_destroy(jsonMsg)
     end function client_readTurn
 
     ! Reads a GAME_ENDS message on the client socket. Crash on error.
@@ -173,6 +177,7 @@ contains
         jsonMsg => this%recvJson()
         call client_checkMessageType(jsonMsg, (/String("GAME_ENDS")/))
         res = message_parseGameEnds(jsonMsg)
+        call fson_destroy(jsonMsg)
     end function client_readGameEnds
 
     ! Reads a DO_INIT message on the client socket. Crash on error.
@@ -184,6 +189,7 @@ contains
         jsonMsg => this%recvJson()
         call client_checkMessageType(jsonMsg, (/String("DO_INIT")/))
         res = message_parseDoInit(jsonMsg)
+        call fson_destroy(jsonMsg)
     end function client_readDoInit
 
     ! Reads a DO_TURN message on the client socket. Crash on error.
@@ -195,6 +201,7 @@ contains
         jsonMsg => this%recvJson()
         call client_checkMessageType(jsonMsg, (/String("DO_TURN")/))
         res = message_parseDoTurn(jsonMsg)
+        call fson_destroy(jsonMsg)
     end function client_readDoTurn
 
     ! Send a string message on the client socket. Crash on error.
@@ -257,7 +264,7 @@ contains
         msg => fson_value_create_struct()
         call fson_value_add_pair(msg, "message_type", fson_value_create_string("TURN_ACK"))
         call fson_value_add_pair(msg, "turn_number", fson_value_create_integer(turnNumber))
-        call fson_value_add_pair(msg, "actions", actions)
+        call fson_value_add_pair(msg, "actions", fson_value_copy(actions))
 
         call this%sendJson(msg)
         call fson_destroy(msg)
@@ -271,7 +278,7 @@ contains
 
         msg => fson_value_create_struct()
         call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_INIT_ACK"))
-        call fson_value_add_pair(msg, "initial_game_state", initialGameState)
+        call fson_value_add_pair(msg, "initial_game_state", fson_value_copy(initialGameState))
 
         call this%sendJson(msg)
         call fson_destroy(msg)
@@ -287,7 +294,7 @@ contains
         msg => fson_value_create_struct()
         call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_TURN_ACK"))
         call fson_value_add_pair(msg, "winner_player_id", fson_value_create_integer(winnerPlayerID))
-        call fson_value_add_pair(msg, "game_state", gameState)
+        call fson_value_add_pair(msg, "game_state", fson_value_copy(gameState))
 
         call this%sendJson(msg)
         call fson_destroy(msg)

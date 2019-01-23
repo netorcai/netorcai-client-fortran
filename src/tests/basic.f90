@@ -54,6 +54,7 @@ contains
         type(DoTurnMessage) :: doTurn
         type(GameEndsMessage) :: gameEnds
         type(fson_value), pointer :: jsonValue
+        logical :: endOfGame
         integer :: i
 
         ! Run netorcai
@@ -87,7 +88,12 @@ contains
             call gameLogic%sendDoTurnAck(jsonValue, -1)
             call fson_destroy(jsonValue)
 
-            turn = player%readTurn()
+            turn = player%readTurn(endOfGame)
+
+            if(endOfGame) then
+                return
+            end if
+
             jsonValue => fson_parse(str='[{"player": "D"}]')
             call player%sendTurnAck(turn%turnNumber, jsonValue)
             call fson_destroy(jsonValue)
