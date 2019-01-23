@@ -15,6 +15,7 @@ module stdc
     use, intrinsic :: ISO_C_BINDING
 
     implicit none
+    public
 
     integer(c_int), parameter :: AF_UNSPEC = 0
     integer(c_int), parameter :: AF_UNIX = 1

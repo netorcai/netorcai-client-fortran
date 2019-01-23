@@ -64,7 +64,7 @@ contains
         integer(c_int) :: tmpRes
 
         if(port < 0 .or. port > 65536) then
-            write(*,*) "Invalid port"
+            print *, "Invalid port"
             stop 1
         end if
 
@@ -74,7 +74,7 @@ contains
         tmpRes = stdc_inet_aton(c_loc(cstring), c_loc(addr%sin_addr))
 
         if(tmpRes == 0) then
-            write(*,*) "Invalid IPv4 address"
+            print *, "Invalid IPv4 address"
             stop 1
         end if
 
@@ -146,7 +146,7 @@ contains
             localSent = this%send(buffer(imin+sent:imax))
 
             if(localSent == 0) then
-                write(*,*) "Broken connection during transfer (sending data)"
+                print *, "Broken connection during transfer (sending data)"
                 stop 1
             end if
 
@@ -176,7 +176,7 @@ contains
             localReceived = this%recv(buffer(imin+received:imax))
 
             if(localReceived == 0) then
-                write(*,*) "Broken connection during transfer (receiving data)"
+                print *, "Broken connection during transfer (receiving data)"
                 stop 1
             end if
 
