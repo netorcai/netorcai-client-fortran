@@ -23,7 +23,7 @@ contains
             &--simple-prompt &
             &--delay-first-turn=50 &
             &--fast &
-            &--nb-turns-max=500 &
+            &--nb-turns-max=200 &
             &--nb-players-max=16")
 
         ! Wait for connection to be possible

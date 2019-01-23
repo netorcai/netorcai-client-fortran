@@ -49,9 +49,16 @@ contains
     ! Initialize a Socket object
     subroutine socket_init(this)
         class(Socket), intent(out) :: this
+        integer(c_int), target :: sockOpt
 
         this%sock = stdc_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         call check_int(this%sock, "socket")
+
+        ! Disable the Nagle algorithm (i.e. removes buffering of TCP packets)
+        sockOpt = 1
+        if(stdc_setsockopt(this%sock, IPPROTO_TCP, TCP_NODELAY, c_loc(sockOpt), 4) == -1) then
+            print *, 'Failed to set the socket option \"TCP_NODELAY\", the TCP packets will be buffered'
+        endif
     end subroutine socket_init
 
     ! Initiate an TCP/IPv4 based connection on a socket

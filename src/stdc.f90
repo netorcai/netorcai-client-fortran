@@ -41,6 +41,8 @@ module stdc
     integer(c_int), parameter :: SOL_SOCKET = 65535
     integer(c_int), parameter :: SO_REUSEADDR = 4
 
+    integer(c_int), parameter :: TCP_NODELAY = 1
+
     !type, bind(c) :: c_sockaddr
     !    integer(c_short) :: sa_family
     !    character(kind=c_char,len=1) :: sa_data ! the compiler say the length MUST be 1...
