@@ -1,6 +1,6 @@
 netorcai-client-fortran
 =================
-FORTRAN version of the [netorcai] client library.
+FORTRAN 2003 version of the [netorcai] client library.
 
 Installation
 ============
