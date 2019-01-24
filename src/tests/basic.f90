@@ -33,8 +33,6 @@ contains
         if(index(line, "Listening incoming connections") == 0) then
             stop "First message is not the one expected: " // line
         end if
-
-        deallocate(line)
     end function launchNetorcaiWaitListening
 
     ! Funny note: there is apparently no way to discard a function result in FORTRAN!
@@ -55,8 +53,7 @@ contains
         type(DoTurnMessage) :: doTurn
         type(GameEndsMessage) :: gameEnds
         type(fson_value), pointer :: jsonValue
-        logical :: endOfGame
-        integer :: i
+        integer :: i, j
 
         ! Run netorcai
         netorcaiProcess = launchNetorcaiWaitListening()
@@ -81,18 +78,20 @@ contains
         call gameLogic%sendDoInitAck(jsonValue)
         call fson_destroy(jsonValue)
         gameStarts = player%readGameStarts()
+        call fson_destroy(gameStarts%initialGameState) ! Free struct internal json data
 
         do i = 1, doInit%nbTurnsMax
             doTurn = gameLogic%readDoTurn()
+            do j = 1, size(doTurn%playerActions)
+                call fson_destroy(doTurn%playerActions(j)%actions) ! Free struct internal json data
+            end do
+
             jsonValue => fson_parse(str='{"all_clients": {"gl": "D"}}')
             call gameLogic%sendDoTurnAck(jsonValue, -1)
             call fson_destroy(jsonValue)
 
-            turn = player%readTurn(endOfGame)
-
-            if(endOfGame) then
-                return
-            end if
+            if(.not. player%readTurn(turn)) return
+            call fson_destroy(turn%gameState) ! Free struct internal json data
 
             jsonValue => fson_parse(str='[{"player": "D"}]')
             call player%sendTurnAck(turn%turnNumber, jsonValue)
@@ -105,6 +104,7 @@ contains
         call fson_destroy(jsonValue)
 
         gameEnds = player%readGameEnds()
+        call fson_destroy(gameEnds%gameState) ! Free struct internal json data
 
         call gameLogic%close()
         call player%close()

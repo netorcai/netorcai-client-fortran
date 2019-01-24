@@ -36,9 +36,9 @@ module netorcai_message
 
     ! Content of a TURN metaprotocol message
     type, public :: TurnMessage
-        integer :: turnNumber; ! In [0..nbTurnsMax[
-        type(PlayerInfo), dimension(:), allocatable :: playersInfo; ! (only for visus) Information about the players
-        type(fson_value), pointer :: gameState; ! Game-dependent object.
+        integer :: turnNumber ! In [0..nbTurnsMax[
+        type(PlayerInfo), dimension(:), allocatable :: playersInfo ! (only for visus) Information about the players
+        type(fson_value), pointer :: gameState ! Game-dependent object.
     end type TurnMessage
 
     ! Content of a DO_INIT metaprotocol message
@@ -111,6 +111,7 @@ contains
         call fson_get(jsonValue, "milliseconds_before_first_turn", res%msBeforeFirstTurn)
         call fson_get(jsonValue, "milliseconds_between_turns", res%msBetweenTurns)
         call fson_get(jsonValue, "initial_game_state", res%initialGameState)
+        res%initialGameState => fson_value_copy(res%initialGameState)
         call fson_get(jsonValue, "players_info", jsonPlayersInfos)
         res%playersInfo = message_parsePlayersInfo(jsonPlayersInfos)
     end function message_parseGameStarts
@@ -122,6 +123,7 @@ contains
 
         call fson_get(jsonValue, "winner_player_id", res%winnerPlayerID)
         call fson_get(jsonValue, "game_state", res%gameState)
+        res%gameState => fson_value_copy(res%gameState)
     end function message_parseGameEnds
 
     ! Parses a TURN metaprotocol message
@@ -134,6 +136,7 @@ contains
         call fson_get(jsonValue, "players_info", jsonPlayersInfos)
         res%playersInfo = message_parsePlayersInfo(jsonPlayersInfos)
         call fson_get(jsonValue, "game_state", res%gameState)
+        res%gameState => fson_value_copy(res%gameState)
     end function message_parseTurn
 
     ! Parses a DO_INIT metaprotocol message
@@ -153,6 +156,7 @@ contains
         call fson_get(jsonValue, "player_id", res%playerID)
         call fson_get(jsonValue, "turn_number", res%turnNumber)
         call fson_get(jsonValue, "actions", res%actions)
+        res%actions => fson_value_copy(res%actions)
     end function message_parsePlayerActions
 
     ! Parses a DO_TURN metaprotocol message

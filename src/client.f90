@@ -148,10 +148,12 @@ contains
     end function client_readGameStarts
 
     ! Reads a TURN message on the client socket. Crash on error.
-    function client_readTurn(this, endOfGame) result(res)
+    ! Return true if the game continue and false else.
+    ! Also return 
+    function client_readTurn(this, turn) result(continueGame)
         class(Client), intent(inout) :: this
-        logical, intent(out) :: endOfGame
-        type(TurnMessage) :: res
+        type(TurnMessage), intent(out) :: turn
+        logical :: continueGame
         type(fson_value), pointer :: jsonMsg
         character(len=256) :: messageType
 
@@ -159,10 +161,10 @@ contains
         call client_checkMessageType(jsonMsg, (/String("TURN"), String("GAME_ENDS")/))
         call fson_get(jsonMsg, "message_type", messageType)
 
-        endOfGame = trim(messageType) == "GAME_ENDS"
+        continueGame = trim(messageType) == "TURN"
 
-        if(.not. endOfGame) then
-            res = message_parseTurn(jsonMsg)
+        if(continueGame) then
+            turn = message_parseTurn(jsonMsg)
         end if
 
         call fson_destroy(jsonMsg)
