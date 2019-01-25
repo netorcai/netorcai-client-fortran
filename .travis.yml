@@ -1,6 +1,9 @@
 language: nix
 nix: 2.1.1
 
+git:
+  quiet: true
+
 script:
   # Install netorcai
   - nix-env --quiet -f https://github.com/netorcai/pkgs/archive/master.tar.gz -iA netorcai_dev
@@ -18,6 +21,12 @@ script:
   - ninja -C build
   - ninja -C build test
   - ninja -C build coverage-text
+
+  # print coverage report
+  - cat build/meson-logs/coverage.txt
+
+  # send coverage results to codecov.io
+  - bash <(curl -s https://codecov.io/bash)
 
   # install doveralls and send coverage results with it
   #- nix-shell -p wget --command 'wget -O ./doveralls "https://github.com/ColdenCullen/doveralls/releases/download/v1.3.1/doveralls_linux_travis"'
