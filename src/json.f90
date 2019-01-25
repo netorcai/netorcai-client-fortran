@@ -4,7 +4,7 @@ module netorcai_json
     use fson, only: fson_value, fson_parse, fson_get, fson_destroy
     use fson_value_m
     use fson_string_m
-    use netorcai_utils, only: utils_strReplace
+    use netorcai_utils
 
     implicit none
     private
@@ -40,7 +40,7 @@ contains
     recursive function fson_value_toString(this) result(jsonStr)
         type(fson_value), pointer :: this, element
         character(len=:), allocatable :: jsonStr
-        character(len=1024) :: tmpStr1 ! Name and string values should not be too big... 
+        character(len=256) :: tmpStr1 ! Name and string values should not be too big... 
         character(len=:), allocatable :: tmpStr2
         integer :: i, count
 
@@ -53,8 +53,8 @@ contains
                 element => this%children
                 do i = 1, count
                     call fson_string_copy(element%name, tmpStr1)
-                    tmpStr2 = utils_strReplace(tmpStr1, '"', '\"')
-                    jsonStr = jsonStr // '"' // trim(tmpStr2) // '": '
+                    tmpStr2 = utils_strReplace(trim(tmpStr1), '"', '\"')
+                    jsonStr = jsonStr // '"' // tmpStr2 // '": '
                     deallocate(tmpStr2)
                     tmpStr2 = fson_value_toString(element)
                     jsonStr = jsonStr // tmpStr2
@@ -84,8 +84,8 @@ contains
                 jsonStr = jsonStr // "null"
             case (TYPE_STRING)
                 call fson_string_copy(this%value_string, tmpStr1)
-                tmpStr2 = utils_strReplace(tmpStr1, '"', '\"')
-                jsonStr = jsonStr // '"' // trim(tmpStr2) // '"'
+                tmpStr2 = utils_strReplace(trim(tmpStr1), '"', '\"')
+                jsonStr = jsonStr // '"' // tmpStr2 // '"'
                 deallocate(tmpStr2)
             case(TYPE_LOGICAL)
                 if(this%value_logical) then
@@ -94,11 +94,9 @@ contains
                     jsonStr = jsonStr // "false"
                 end if
             case(TYPE_INTEGER)
-                write(tmpStr1, *) this%value_long_integer
-                jsonStr = jsonStr // trim(adjustl(tmpStr1))
+                jsonStr = jsonStr // utils_longToStr(this%value_long_integer)
             case(TYPE_REAL)
-                write(tmpStr1, "(ES24.17)") this%value_double
-                jsonStr = jsonStr // trim(adjustl(tmpStr1))
+                jsonStr = jsonStr // utils_doubleToStr(this%value_double)
         end select
     end function fson_value_toString
 
@@ -192,7 +190,7 @@ contains
 
     ! Create and return a new json integer node from value (32 bits).
     function fson_value_create_int(value) result(jsonValue)
-        integer, intent(in) :: value
+        integer(4), intent(in) :: value
         type(fson_value), pointer :: jsonValue
 
         jsonValue => fson_value_create_long(int(value, kind=8))

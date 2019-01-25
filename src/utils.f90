@@ -28,39 +28,47 @@ contains
         end do
     end function utils_toLower
 
+    ! Convert a standard integer to a string
+    ! Return tha allocated string
     function utils_intToStr(value) result(outValue)
         integer(4), intent(in) :: value
         character(len=16) :: tmpStr
         character(len=:), allocatable :: outValue
 
-        write(tmpStr, *) outValue
+        write(tmpStr, *) value
         outValue = trim(adjustl(tmpStr))
     end function utils_intToStr
 
+    ! Convert a long integer to a string
+    ! Return tha allocated string
     function utils_longToStr(value) result(outValue)
         integer(8), intent(in) :: value
         character(len=24) :: tmpStr
         character(len=:), allocatable :: outValue
 
-        write(tmpStr, *) outValue
+        write(tmpStr, *) value
         outValue = trim(adjustl(tmpStr))
     end function utils_longToStr
 
+    ! Convert a simple precision number to a string
+    ! Return tha allocated string
     function utils_floatToStr(value) result(outValue)
         real(4), intent(in) :: value
         character(len=24) :: tmpStr
         character(len=:), allocatable :: outValue
 
-        write(tmpStr, "(ES14.7)") outValue
+        write(tmpStr, "(ES14.7)") value
         outValue = trim(adjustl(tmpStr))
     end function utils_floatToStr
 
+    ! Convert a double precision number to a string
+    ! Return tha allocated string
     function utils_doubleToStr(value) result(outValue)
         real(8), intent(in) :: value
         character(len=48) :: tmpStr
         character(len=:), allocatable :: outValue
 
-        write(tmpStr, "(ES24.15)") outValue
+        write(tmpStr, "(ES24.15)") value
         outValue = trim(adjustl(tmpStr))
     end function utils_doubleToStr
 
@@ -71,21 +79,25 @@ contains
         character(len=*), intent(in) :: seekStr
         character(len=*), intent(in) :: replaceStr
         character(len=:), allocatable :: outStr
-        integer :: i
+        integer :: i, copyLen
 
         outStr = ""
         i = 1
+        copyLen = 0
 
-        ! Naive algorithm (very inefficient)
+        ! Efficient only if there is no/few pieces to be replaced
         do while(i <= len(str))
             if(str(i:min(i+len(seekStr)-1,len(str))) == seekStr) then
-                outStr = outStr // replaceStr
+                outStr = outStr // str(i-copyLen:i-1) // replaceStr
                 i = i + len(seekStr)
+                copyLen = 0
             else
-                outStr = outStr // str(i:i)
                 i = i + 1
+                copyLen = copyLen + 1
             end if
         end do
+
+        outStr = outStr // str(i-copyLen:i-1)
     end function utils_strReplace
 end module netorcai_utils
 
