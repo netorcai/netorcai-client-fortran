@@ -6,9 +6,9 @@ script:
   - nix-env -f https://github.com/netorcai/pkgs/archive/master.tar.gz -iA netorcai_dev
   - netorcai --version
 
-  # install gfortran, ninja and meson (from nix master)
-  #- nix-env -f https://github.com/NixOS/nixpkgs/tarball/bae9fd59a945357f7712a63c0a09b72d4ed44e6e -iA gfortran ninja meson pythonPackages.gcovr
-  - sudo apt install gfortran ninja meson gcovr
+  # install gfortran & gcovr (from unstable) and ninja & meson (from stable)
+  - nix-env -f https://github.com/NixOS/nixpkgs/archive/18.09.tar.gz -iA gfortran pythonPackages.gcovr
+  - nix-env -f https://github.com/NixOS/nixpkgs/tarball/bae9fd59a945357f7712a63c0a09b72d4ed44e6e -iA ninja meson
   - gfortran --version
   - ninja --version
   - meson --version
