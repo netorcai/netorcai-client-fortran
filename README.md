@@ -1,3 +1,6 @@
+[![Build Status](https://img.shields.io/travis/netorcai/netorcai-client-fortran/master.svg?maxAge=600)](https://travis-ci.org/netorcai/netorcai-client-fortran)
+[![Coverage Status](https://img.shields.io/codecov/c/github/netorcai/netorcai-client-fortran/master.svg?maxAge=600)](https://codecov.io/github/netorcai/netorcai-client-fortran)
+
 netorcai-client-fortran
 =================
 FORTRAN 2003 version of the [netorcai] client library.
