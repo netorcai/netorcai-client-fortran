@@ -2,18 +2,18 @@ language: nix
 nix: 2.1.1
 
 script:
-  # install netorcai
-  - nix-env -f https://github.com/netorcai/pkgs/archive/master.tar.gz -iA netorcai_dev
+  # Install netorcai
+  - nix-env --quiet -f https://github.com/netorcai/pkgs/archive/master.tar.gz -iA netorcai_dev
   - netorcai --version
 
-  # install gfortran & gcovr (from unstable) and ninja & meson (from stable)
-  - nix-env -f https://github.com/NixOS/nixpkgs/archive/18.09.tar.gz -iA gfortran pythonPackages.gcovr
-  - nix-env -f https://github.com/NixOS/nixpkgs/tarball/bae9fd59a945357f7712a63c0a09b72d4ed44e6e -iA ninja meson
+  # Install gfortran & gcovr (from unstable) and ninja & meson (from stable)
+  - nix-env --quiet -f https://github.com/NixOS/nixpkgs/archive/18.09.tar.gz -iA gfortran pythonPackages.gcovr
+  - nix-env --quiet -f https://github.com/NixOS/nixpkgs/tarball/bae9fd59a945357f7712a63c0a09b72d4ed44e6e -iA ninja meson
   - gfortran --version
   - ninja --version
   - meson --version
 
-  # run unit tests with coverage
+  # Run unit tests with coverage
   - meson build -Db_coverage=true
   - ninja -C build
   - ninja -C build test
