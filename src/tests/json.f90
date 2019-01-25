@@ -18,7 +18,19 @@ contains
         ! Null
         jsonValue => fson_value_create_null()
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_toLower(jsonStr) == "null")
+        call test%assert(utils_toLower(jsonStr), "null")
+        call fson_destroy(jsonValue)
+
+        ! Logical (true)
+        jsonValue => fson_value_create_logical(.true.)
+        jsonStr = fson_value_toString(jsonValue)
+        call test%assert(utils_toLower(jsonStr), "true")
+        call fson_destroy(jsonValue)
+
+        ! Logical (false)
+        jsonValue => fson_value_create_logical(.false.)
+        jsonStr = fson_value_toString(jsonValue)
+        call test%assert(utils_toLower(jsonStr), "false")
         call fson_destroy(jsonValue)
 
         ! Positive integers (int)
