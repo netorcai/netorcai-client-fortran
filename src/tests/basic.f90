@@ -90,7 +90,7 @@ contains
             call gameLogic%sendDoTurnAck(jsonValue, -1)
             call fson_destroy(jsonValue)
 
-            if(.not. player%readTurn(turn)) return
+            if(.not. player%readTurn(turn)) exit ! Break the game loop if needed
             call fson_destroy(turn%gameState) ! Free struct internal json data
 
             jsonValue => fson_parse(str='[{"player": "D"}]')
