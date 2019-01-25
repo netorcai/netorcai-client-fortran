@@ -1,0 +1,27 @@
+language: nix
+nix: 2.1.1
+
+script:
+  # install netorcai
+  - nix-env -f https://github.com/netorcai/pkgs/archive/master.tar.gz -iA netorcai_dev
+  - netorcai --version
+
+  # install gfortran, ninja and meson
+  - nix-env -f https://github.com/NixOS/nixpkgs/archive/18.09.tar.gz -iA gfortran ninja meson pythonPackages.gcovr
+  - gfortran --version
+  - ninja --version
+  - meson --version
+
+  # run unit tests with coverage
+  - meson build -Db_coverage=true
+  - ninja -C build
+  - ninja -C build test
+  - ninja -C build coverage-text
+
+  # install doveralls and send coverage results with it
+  - nix-shell -p wget --command 'wget -O ./doveralls "https://github.com/ColdenCullen/doveralls/releases/download/v1.3.1/doveralls_linux_travis"'
+  - chmod +x ./doveralls
+  - ./doveralls
+
+  # TODO: build and run the example GL and player
+
