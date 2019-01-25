@@ -21,12 +21,15 @@ module netorcai_json
     public :: fson_value_toString
     public :: fson_value_copy
     public :: fson_value_create_struct
+    public :: fson_value_add
     public :: fson_value_add_pair
     public :: fson_value_create_null
     public :: fson_value_create_array
     public :: fson_value_create_string
-    public :: fson_value_create_integer
-    public :: fson_value_create_real
+    public :: fson_value_create_int
+    public :: fson_value_create_long
+    public :: fson_value_create_float
+    public :: fson_value_create_double
     public :: fson_value_create_logical
 contains
     ! Serialize a json document: convert it to a string
@@ -91,10 +94,11 @@ contains
                     jsonStr = jsonStr // "false"
                 end if
             case(TYPE_INTEGER)
-                write(tmpStr1, *) this%value_integer
+                write(tmpStr1, *) this%value_long_integer
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
             case(TYPE_REAL)
                 write(tmpStr1, *) this%value_double
+print *, "VALUE=<", trim(adjustl(tmpStr1)), ">"
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
         end select
     end function fson_value_toString
@@ -133,9 +137,9 @@ contains
             case(TYPE_LOGICAL)
                 jsonNodeCopy => fson_value_create_logical(this%value_logical)
             case(TYPE_INTEGER)
-                jsonNodeCopy => fson_value_create_integer(this%value_integer)
+                jsonNodeCopy => fson_value_create_long(this%value_long_integer)
             case(TYPE_REAL)
-                jsonNodeCopy => fson_value_create_real(this%value_real)
+                jsonNodeCopy => fson_value_create_double(this%value_double)
         end select
     end function fson_value_copy
 
@@ -187,25 +191,53 @@ contains
         call fson_string_append(jsonValue%value_string, value)
     end function fson_value_create_string
 
-    ! Create and return a new json integer node from value.
-    function fson_value_create_integer(value) result(jsonValue)
+    ! Create and return a new json integer node from value (32 bits).
+    function fson_value_create_int(value) result(jsonValue)
         integer, intent(in) :: value
         type(fson_value), pointer :: jsonValue
 
         jsonValue => fson_value_create()
         jsonValue%value_type = TYPE_INTEGER
+        ! WTF: why it should be stored in 2 vars ?
         jsonValue%value_integer = value
-    end function fson_value_create_integer
+        jsonValue%value_long_integer = int(value, kind=4)
+    end function fson_value_create_int
 
-    ! Create and return a new json real node from value.
-    function fson_value_create_real(value) result(jsonValue)
-        real, intent(in) :: value
+    ! Create and return a new json integer node from value (64 bits).
+    function fson_value_create_long(value) result(jsonValue)
+        integer(8), intent(in) :: value
         type(fson_value), pointer :: jsonValue
 
         jsonValue => fson_value_create()
         jsonValue%value_type = TYPE_INTEGER
+        ! WTF: why it should be stored in 2 vars ?
+        jsonValue%value_integer = int(value, kind=4)
+        jsonValue%value_long_integer = value
+    end function fson_value_create_long
+
+    ! Create and return a new json real node from value (simple precision).
+    function fson_value_create_float(value) result(jsonValue)
+        real, intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_REAL
+        ! WTF: why it should be stored in 2 vars ?
         jsonValue%value_real = value
-    end function fson_value_create_real
+        jsonValue%value_double = real(value, kind=4)
+    end function fson_value_create_float
+
+    ! Create and return a new json real node from value (double precision).
+    function fson_value_create_double(value) result(jsonValue)
+        double precision, intent(in) :: value
+        type(fson_value), pointer :: jsonValue
+
+        jsonValue => fson_value_create()
+        jsonValue%value_type = TYPE_REAL
+        ! WTF: why it should be stored in 2 vars ?
+        jsonValue%value_real = real(value, kind=4)
+        jsonValue%value_double = value
+    end function fson_value_create_double
 
     ! Create and return a new json null node.
     function fson_value_create_logical(value) result(jsonValue)

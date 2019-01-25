@@ -23,7 +23,7 @@ contains
             &--simple-prompt &
             &--delay-first-turn=50 &
             &--fast &
-            &--nb-turns-max=200 &
+            &--nb-turns-max=100 &
             &--nb-players-max=16")
 
         ! Wait for connection to be possible
@@ -111,7 +111,7 @@ contains
         call player%close()
 
         print *, "Waiting for the netorcai process to end..."
-        call test%assert(netorcaiProcess%wait() == 0)
+        call test%assert(netorcaiProcess%wait(), 0, "bad process return value")
     end subroutine test_game
 end module netorcai_test_basic
 

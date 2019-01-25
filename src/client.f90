@@ -265,7 +265,7 @@ contains
 
         msg => fson_value_create_struct()
         call fson_value_add_pair(msg, "message_type", fson_value_create_string("TURN_ACK"))
-        call fson_value_add_pair(msg, "turn_number", fson_value_create_integer(turnNumber))
+        call fson_value_add_pair(msg, "turn_number", fson_value_create_int(turnNumber))
         call fson_value_add_pair(msg, "actions", fson_value_copy(actions))
 
         call this%sendJson(msg)
@@ -295,7 +295,7 @@ contains
 
         msg => fson_value_create_struct()
         call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_TURN_ACK"))
-        call fson_value_add_pair(msg, "winner_player_id", fson_value_create_integer(winnerPlayerID))
+        call fson_value_add_pair(msg, "winner_player_id", fson_value_create_int(winnerPlayerID))
         call fson_value_add_pair(msg, "game_state", fson_value_copy(gameState))
 
         call this%sendJson(msg)
