@@ -1,6 +1,6 @@
 ! Assumtions:
 !     - FORTRAN 2003 compatible
-!     - Linux ONLY data structures and constants
+!     - 64 bits & Linux ONLY data structures and constants
 !     - types size are OK (eg. socklen_t and s_addr are strict uint32_t)
 
 ! Notes:

@@ -18,31 +18,49 @@ contains
         ! Null
         jsonValue => fson_value_create_null()
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(fson_value_toString(jsonValue), "null")
+        call test%assert(utils_toLower(jsonStr) == "null")
         call fson_destroy(jsonValue)
 
-        ! Positive integers
+        ! Positive integers (int)
         jsonValue => fson_value_create_int(42)
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(fson_value_toString(jsonValue), "42")
+        call test%assert(jsonStr, "42")
         call fson_destroy(jsonValue)
 
-        ! Negative integers
-        jsonValue => fson_value_create_int(-1)
+        ! Positive integers (long)
+        jsonValue => fson_value_create_long(420000000000_8)
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(fson_value_toString(jsonValue), "-1")
+        call test%assert(jsonStr, "420000000000")
         call fson_destroy(jsonValue)
 
-        ! Reals
-        jsonValue => fson_value_create_float(3.1415926535)
+        ! Negative integers (int)
+        jsonValue => fson_value_create_int(-42)
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr(1:4), "3.14")
+        call test%assert(jsonStr, "-42")
+        call fson_destroy(jsonValue)
+
+        ! Negative integers (long)
+        jsonValue => fson_value_create_long(-420000000000_8)
+        jsonStr = fson_value_toString(jsonValue)
+        call test%assert(jsonStr, "-420000000000")
+        call fson_destroy(jsonValue)
+
+        ! Reals (float)
+        jsonValue => fson_value_create_float(3.1415926535_4)
+        jsonStr = fson_value_toString(jsonValue)
+        call test%assert(jsonStr(1:6), "3.1415")
+        call fson_destroy(jsonValue)
+
+        ! Reals (double)
+        jsonValue => fson_value_create_double(3.1415926535_8)
+        jsonStr = fson_value_toString(jsonValue)
+        call test%assert(jsonStr(1:12), "3.1415926535")
         call fson_destroy(jsonValue)
 
         ! Strings
         jsonValue => fson_value_create_string("test")
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(fson_value_toString(jsonValue), '"test"')
+        call test%assert(jsonStr, '"test"')
         call fson_destroy(jsonValue)
 
         ! Arrays
@@ -50,14 +68,14 @@ contains
         call fson_value_add(jsonValue, fson_value_create_int(42))
         call fson_value_add(jsonValue, fson_value_create_int(0))
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_strReplace(fson_value_toString(jsonValue), " ", ""), '[42,0]')
+        call test%assert(utils_strReplace(jsonStr, " ", ""), '[42,0]')
         call fson_destroy(jsonValue)
 
         ! Structs
         jsonValue => fson_value_create_struct()
         call fson_value_add_pair(jsonValue, "value", fson_value_create_int(42))
         jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_strReplace(fson_value_toString(jsonValue), " ", ""), '{"value":42}')
+        call test%assert(utils_strReplace(jsonStr, " ", ""), '{"value":42}')
         call fson_destroy(jsonValue)
     end subroutine test_tostring
 

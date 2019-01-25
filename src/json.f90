@@ -97,8 +97,7 @@ contains
                 write(tmpStr1, *) this%value_long_integer
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
             case(TYPE_REAL)
-                write(tmpStr1, *) this%value_double
-print *, "VALUE=<", trim(adjustl(tmpStr1)), ">"
+                write(tmpStr1, "(ES24.17)") this%value_double
                 jsonStr = jsonStr // trim(adjustl(tmpStr1))
         end select
     end function fson_value_toString
@@ -196,11 +195,7 @@ print *, "VALUE=<", trim(adjustl(tmpStr1)), ">"
         integer, intent(in) :: value
         type(fson_value), pointer :: jsonValue
 
-        jsonValue => fson_value_create()
-        jsonValue%value_type = TYPE_INTEGER
-        ! WTF: why it should be stored in 2 vars ?
-        jsonValue%value_integer = value
-        jsonValue%value_long_integer = int(value, kind=4)
+        jsonValue => fson_value_create_long(int(value, kind=8))
     end function fson_value_create_int
 
     ! Create and return a new json integer node from value (64 bits).
@@ -220,11 +215,7 @@ print *, "VALUE=<", trim(adjustl(tmpStr1)), ">"
         real, intent(in) :: value
         type(fson_value), pointer :: jsonValue
 
-        jsonValue => fson_value_create()
-        jsonValue%value_type = TYPE_REAL
-        ! WTF: why it should be stored in 2 vars ?
-        jsonValue%value_real = value
-        jsonValue%value_double = real(value, kind=4)
+        jsonValue => fson_value_create_double(real(value, kind=8))
     end function fson_value_create_float
 
     ! Create and return a new json real node from value (double precision).
