@@ -31,7 +31,8 @@ contains
 
         ! If cannot be found
         if(index(line, "Listening incoming connections") == 0) then
-            stop "First message is not the one expected: " // line
+            print *, "Error: first message of netorcai is not the one expected: " // line
+            stop 1
         end if
     end function launchNetorcaiWaitListening
 

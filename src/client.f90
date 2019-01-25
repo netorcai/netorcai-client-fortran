@@ -106,7 +106,7 @@ contains
         if(trim(messageType) == "KICK") then
             call fson_get(jsonMsg, "kick_reason", kickReason)
             print *, "Kicked from netorai. Reason: ", trim(kickReason)
-            STOP 1
+            stop 1
         else
             found = .false.
 
@@ -118,7 +118,7 @@ contains
 
             if(.not. found) then
                 print *, "Unexpected message received: ", trim(messageType)
-                STOP 1
+                stop 1
             endif
         end if
     end subroutine client_checkMessageType
