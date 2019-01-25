@@ -81,7 +81,7 @@ contains
         gameStarts = player%readGameStarts()
         call fson_destroy(gameStarts%initialGameState) ! Free struct internal json data
 
-        do i = 1, doInit%nbTurnsMax
+        do i = 1, doInit%nbTurnsMax-1
             doTurn = gameLogic%readDoTurn()
             do j = 1, size(doTurn%playerActions)
                 call fson_destroy(doTurn%playerActions(j)%actions) ! Free struct internal json data
