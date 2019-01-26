@@ -130,7 +130,7 @@ contains
         call fson_destroy(jsonValue)
         call test%assert(.true.)
 
-        jsonValue => fson_parse(str='"\"')
+        jsonValue => fson_parse(str='"\""')
         call fson_destroy(jsonValue)
         call test%assert(.true.)
 
