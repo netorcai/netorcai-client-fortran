@@ -106,5 +106,91 @@ contains
         call test%assert(utils_strReplace(outJsonStr, " ", ""), inJsonStr)
         call fson_destroy(jsonValue)
     end subroutine test_string_escape
+
+    subroutine test_fson_bugs(test)
+        class(unit_test_type), intent(inout) :: test
+        type(fson_value), pointer :: jsonValue
+
+        ! Infinite loop
+        ! jsonValue => fson_parse(str='42')
+        ! call fson_destroy(jsonValue)
+        ! call test%assert(.true.)
+
+        ! Infinite loop
+        ! jsonValue => fson_parse(str='-42')
+        ! call fson_destroy(jsonValue)
+        ! call test%assert(.true.)
+
+        ! Infinite loop
+        ! jsonValue => fson_parse(str='3.141592')
+        ! call fson_destroy(jsonValue)
+        ! call test%assert(.true.)
+
+        jsonValue => fson_parse(str='""')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='"\"')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='"test"')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='null')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='true')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='false')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='{}')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='{"value": 42}')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='[]')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='[1]')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+
+        jsonValue => fson_parse(str='[1, 2]')
+        call fson_destroy(jsonValue)
+        call test%assert(.true.)
+    end subroutine test_fson_bugs
+
+    subroutine test_perf(test)
+        class(unit_test_type), intent(inout) :: test
+        type(fson_value), pointer :: jsonValue
+        character(len=:), allocatable :: jsonStr
+        integer :: i
+
+        ! Build the string
+        jsonStr = ""
+        do i = 1, 65536/2
+            jsonStr = jsonStr // " "
+        end do
+        jsonStr = jsonStr // '"s"'
+        do i = 1, 65536/2
+            jsonStr = jsonStr // " "
+        end do
+
+        do i = 1, 3
+            jsonValue => fson_parse(str=jsonStr)
+            call fson_destroy(jsonValue)
+        end do
+    end subroutine test_perf
 end module netorcai_test_json
 
