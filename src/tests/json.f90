@@ -177,20 +177,16 @@ contains
         character(len=:), allocatable :: jsonStr
         integer :: i
 
-        ! Build the string
-        jsonStr = ""
-        do i = 1, 65536/2
-            jsonStr = jsonStr // " "
+        ! Build the string: a 50 Ko json document
+        jsonStr = "[0"
+        do i = 1, 10000
+            jsonStr = jsonStr // "," // utils_intToStr(i)
         end do
-        jsonStr = jsonStr // '"s"'
-        do i = 1, 65536/2
-            jsonStr = jsonStr // " "
-        end do
+        jsonStr = jsonStr // ']'
 
-        do i = 1, 3
-            jsonValue => fson_parse(str=jsonStr)
-            call fson_destroy(jsonValue)
-        end do
+        ! Too slow... (150 Ko/s on my laptop)
+        jsonValue => fson_parse(str=jsonStr)
+        call fson_destroy(jsonValue)
     end subroutine test_perf
 end module netorcai_test_json
 
