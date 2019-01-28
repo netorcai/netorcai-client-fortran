@@ -1,14 +1,23 @@
-! Useful functions that does not exist FORTRAN 
+! Useful functions that does not exist FORTRAN
+!
+! Funny note: Apparently NASA have done the same thing (but more complete)
+! See https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/spicelib/
 module netorcai_utils
     implicit none
     private
 
     public :: utils_toLower
     public :: utils_strReplace
+    public :: utils_hexToInt
+    public :: utils_startsWith
     public :: utils_intToStr
     public :: utils_longToStr
     public :: utils_floatToStr
     public :: utils_doubleToStr
+    public :: utils_getFileUnit
+    public :: utils_getFileContent
+    public :: utils_setFileContent
+    public :: utils_readLine
 contains
     ! Seriously FORTRAN does not implement such a basic function...
     ! Return an allocated string that is a lower-case version of str
@@ -27,6 +36,98 @@ contains
             end if
         end do
     end function utils_toLower
+
+    ! Return true if str starts with prefix, false otherwise.
+    ! If strOffset is set, compare str(strOffset:) with prefix.
+    ! Assumption: 1 <= strOffset <= len(str).
+    function utils_startsWith(str, prefix, strOffset) result(res)
+        character(*), intent(in) :: str
+        character(*), intent(in) :: prefix
+        integer, optional, intent(in) :: strOffset
+        integer :: offset
+        logical :: res
+
+        if(present(strOffset)) then
+            offset = strOffset
+        else
+            offset = 0
+        end if
+
+        res = str(offset:offset+len(prefix)-1) == prefix
+    end function utils_startsWith
+
+    ! ! Safe substring function with clamped bounds.
+    ! ! mini and maxi are included in the range.
+    ! function utils_substr(str, mini, maxi) result(subStr)
+    !     character(*), intent(in) :: subStr
+    !     integer, intent(in) :: mini
+    !     integer, intent(in) :: maxi
+    !     character(:), allocatable :: subStr
+
+    !     subStr = str(max(1,mini):min(maxi,len(str)))
+    ! end function utils_substr
+
+    ! Replace all occurences of seekStr by replaceStr in str and return the result.
+    ! Return an allocated string that should be deallocated by the user.
+    function utils_strReplace(str, seekStr, replaceStr) result(outStr)
+        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: seekStr
+        character(len=*), intent(in) :: replaceStr
+        character(len=:), allocatable :: outStr
+        integer :: i, copyLen
+
+        outStr = ""
+        i = 1
+        copyLen = 0
+
+        ! Efficient only if there is no/few pieces to be replaced
+        do while(i <= len(str))
+            if(str(i:min(i+len(seekStr)-1,len(str))) == seekStr) then
+                outStr = outStr // str(i-copyLen:i-1) // replaceStr
+                i = i + len(seekStr)
+                copyLen = 0
+            else
+                i = i + 1
+                copyLen = copyLen + 1
+            end if
+        end do
+
+        outStr = outStr // str(i-copyLen:i-1)
+    end function utils_strReplace
+
+    ! Convert a non-prefixed hexadecimal string to an integer
+    ! If fail is not set, the function end silently
+    function utils_hexToInt(str, fail) result(outValue)
+        character(*), intent(in) :: str
+        logical, optional, intent(out) :: fail
+        integer :: i, tmp, outValue
+        integer :: value
+
+        value = 0
+
+        do i = 1, len(str)
+            tmp = ichar(str(i:i))
+
+            ! If overflow (allow signed overflow)
+            if(value >= ishft(1, 28) .and. present(fail)) then
+                fail = .true.
+                return
+            end if
+
+            if(tmp >= ichar('0') .and. tmp <= ichar('9')) then
+                value = value * 16 + (tmp - ichar('0'))
+            elseif(tmp >= ichar('A') .and. tmp <= ichar('F')) then
+                value = value * 16 + (tmp - ichar('A') + 10)
+            elseif(tmp >= ichar('a') .and. tmp <= ichar('f')) then
+                value = value * 16 + (tmp - ichar('a') + 10)
+            elseif(present(fail)) then
+                fail = .true.
+                return
+            else
+                ! Other characters are ignored silently...
+            end if
+        end do
+    end function utils_hexToInt
 
     ! Convert a standard integer to a string
     ! Return tha allocated string
@@ -72,32 +173,115 @@ contains
         outValue = trim(adjustl(tmpStr))
     end function utils_doubleToStr
 
-    ! Replace all occurences of seekStr by replaceStr in str and return the result.
-    ! Return an allocated string that should be deallocated by the user.
-    function utils_strReplace(str, seekStr, replaceStr) result(outStr)
-        character(len=*), intent(in) :: str
-        character(len=*), intent(in) :: seekStr
-        character(len=*), intent(in) :: replaceStr
-        character(len=:), allocatable :: outStr
-        integer :: i, copyLen
+    ! Return a free unit to open a file
+    function utils_getFileUnit() result(unit)
+        integer :: unit, iostat
+        logical :: opened
 
-        outStr = ""
-        i = 1
-        copyLen = 0
+        ! Funny note: the management of files in FORTRAN is a joke, the user 
+        ! must provide a unique int to identify the file, but how we can know
+        ! the value to provide in a non-monolithic "I-know-everything" app ?
+        ! We bruteforce all the value until one is OK!
+        do unit = 32767, 1, -1
+            inquire(unit=unit, opened=opened, iostat=iostat)
+            if(iostat /= 0) cycle
+            if(.not. opened) return
+        end do
+    end function utils_getFileUnit
 
-        ! Efficient only if there is no/few pieces to be replaced
-        do while(i <= len(str))
-            if(str(i:min(i+len(seekStr)-1,len(str))) == seekStr) then
-                outStr = outStr // str(i-copyLen:i-1) // replaceStr
-                i = i + len(seekStr)
-                copyLen = 0
-            else
-                i = i + 1
-                copyLen = copyLen + 1
-            end if
+    ! Read the whole content of a given file
+    ! Return an allocated string
+    ! If fail is not set, the function crashes on error
+    function utils_getFileContent(filename, fail) result(fileContent)
+        character(*), intent(in) :: filename
+        logical, optional, intent(out) :: fail
+        character(:), allocatable :: lineBuff
+        character(:), allocatable :: fileContent
+        integer :: unit, iostat
+        logical :: end
+
+        fileContent = ""
+        end = .false.
+
+        unit = utils_getFileUnit()
+
+        if(present(fail)) then
+            open(unit=unit, file=filename, iostat=iostat, status="old")
+            fail = iostat /= 0
+            if(fail) return
+        else
+            open(unit=unit, file=filename, status="old")
+        end if
+
+        do while(.not. end)
+            call utils_readLine(unit, lineBuff, end)
+
+            fileContent = fileContent // lineBuff
         end do
 
-        outStr = outStr // str(i-copyLen:i-1)
-    end function utils_strReplace
+        close(unit=unit)
+    end function utils_getFileContent
+
+    ! Write the whole content of a given file
+    ! If fail is not set, the function crashes on error
+    subroutine utils_setFileContent(filename, content, fail)
+        character(*), intent(in) :: filename
+        character(*), intent(in) :: content
+        logical, optional, intent(out) :: fail
+        integer :: unit, status
+        logical :: internalFail
+
+        internalFail = .false.
+
+        unit = utils_getFileUnit()
+        open(unit=unit, file=filename, status="new")
+
+        do while(.true.)
+            write(unit, "(a)", iostat=status) content
+
+            ! TODO
+            !if(present(fail)) then
+            !    fail = internalFail
+            !elseif(internalFail)
+            !    print *, "I/O error"
+            !end if
+        end do
+
+        call close(unit)
+    end subroutine utils_setFileContent
+
+    ! Read a line from a file
+    ! If fail is not set, the function fail silently
+    ! Funny note: FORTRAN cannot tell if there is an empty line at the end of the file...
+    subroutine utils_readLine(unit, line, end)
+        integer, intent(in) :: unit
+        character(LEN=:), allocatable, intent(out) :: line
+        logical, intent(out) :: end
+        character(LEN=1024) :: buff
+        integer status, size
+
+        line = ""
+        end = .false.
+
+        do
+            ! Funny note: prior to FORTRAN 2003, we should have used fixed-size strings here:
+            !     - Fixed-size strings are padded with spaces
+            !     - Static strings have to be trim like in MATLAB which cause issue with withspaces...
+            !     - trim(adjustl(s)) is needed for really trim a string (trim is only for the right)
+            read(unit, '(a)', advance='NO', iostat=status, size=size) buff
+
+            if(is_iostat_end(status)) then
+                end = .true.
+                return
+            end if
+
+            line = line // buff(1:size)
+
+            ! In FORTRAN a "record" seems to be a line
+            if(is_iostat_eor(status)) then
+                return
+            end if
+        end do
+    end subroutine utils_readLine
 end module netorcai_utils
 
