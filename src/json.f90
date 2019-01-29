@@ -266,6 +266,8 @@ contains
             offset = offset + 1
 
             if(escape) then
+                escape = .false.
+
                 if(c == '"' .or. c == '\' .or. c == '/') then
                     res = res // c
                 elseif(c == 'b') then
@@ -304,7 +306,7 @@ contains
             else
                 if(c == '"') then
                     return
-                elseif(c == '/') then
+                elseif(c == '\') then
                     escape = .true.
                 else
                     res = res // c
