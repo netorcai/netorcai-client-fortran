@@ -1,8 +1,15 @@
 ! Fun notes:
+!     - Allocatable behave like unique_ptr in C++ and seems cool but its a trap!
+!     - Allocatable classes are totally buggy (apparently both in gfortran and ifort)
+!     - Allocatable array are just buggy with ifort < 2019
+!     - Returned allocatable variables MUST be filled (crash otherwise) even when the function fail
+!     - Returned pointer variables cannot be initialized (otherwise it would be too safe) 
+!     - WTF: recursive functions reset its local variables to their init value if set after each call
+!         => DO NOT SET VARIABLE IN DECLARATIONS
 !     - Pure virtual methods are called "deferred" in FORTRAN and are both uggly and cumbersome
-!     - import is a magic keyword to solve issues with the symbol definition order
+!     - Import is a magic keyword to solve issues with the symbol definition order
 !     - class should be used for polymorphic types (YES! in FORTRAN!), type otherwise
-!     - allocatable behave like unique_ptr in C++ and is quite cool!
+!     - class(xxx)-based affectation is not checked by gfortran...
 
 ! Json local library
 module netorcai_json
@@ -12,43 +19,83 @@ module netorcai_json
     private
 
     ! Load a Json document from a file.
-    ! See the definition for further information.
+    ! If fail is not set, the function crashes on error.
     public :: json_load
 
     ! Load a Json document from a string.
-    ! See the definition for further information.
+    ! If fail is not set, the function crashes on error.
     public :: json_parse
+
+    ! TODO
+    !public :: json_makeNull
+    !public :: json_makeBool
+    !public :: json_makeInteger
+    !public :: json_makeNumber
+    !public :: json_makeString
+    !public :: json_makeArray
+    !public :: json_makeObject
+    !public :: json_addPair
+    !public :: json_addItem
+
+    ! Helper class to control the memory thanks to scoping
+    ! (useful in FORTRAN 2008 mainly)
+    type, public :: JsonDocument
+        class(JsonValue), pointer :: value => null()
+    contains
+        ! Serialize the whole json document into a string.
+        ! Proxy to the JsonValue class. See it for more information.
+        procedure :: toString => JsonDocument_toString
+
+        ! Clone the whole json document.
+        ! Proxy to the JsonValue class. See it for more information.
+        procedure :: clone => JsonDocument_clone
+
+        ! Save the whole document into a file.
+        ! Proxy to the JsonValue class. See it for more information.
+        procedure :: saveTo => JsonDocument_saveTo
+
+        ! Clean all child nodes when destroyed
+        final :: JsonDocument_destructor
+    end type JsonDocument
 
     ! Main class of this module: represent an abstract json value.
     type, abstract, public :: JsonValue
     contains
-        ! Serialize the value into a string.
+        ! Serialize the value into a string (with its children).
         ! Return an allocated string that should be deallocated by the user.
         procedure(JsonValue_toString), deferred :: toString
 
-        ! Clone the value.
+        ! Clone the value (and its children).
         ! Useful for creating a new json document since no value should be used 
         ! in multiple other value (due to automatic recursive deletion).
         procedure(JsonValue_clone), deferred :: clone
 
-        ! Save a Json document to a file.
-        ! See the definition for further information.
+        ! Save the value into a file (with its children).
+        ! If fail is not set, the function crashes on error.
         procedure :: saveTo => JsonValue_saveTo
+
+        ! TODO
+        ! procedure(JsonValue_destroy), deferred :: destroy
     end type JsonValue
 
     ! For deferred procedures
     abstract interface
-        function JsonValue_toString(this) result(res)
+        recursive function JsonValue_toString(this) result(res)
             import JsonValue
             class(JsonValue), intent(in) :: this
             character(:), allocatable :: res
         end function JsonValue_toString
 
-        function JsonValue_clone(this) result(res)
+        recursive function JsonValue_clone(this) result(res)
             import JsonValue
             class(JsonValue), intent(in) :: this
-            class(JsonValue), allocatable :: res
+            class(JsonValue), pointer :: res
         end function JsonValue_clone
+
+        subroutine JsonValue_destroy(this)
+            import JsonValue
+            class(JsonValue), intent(in) :: this
+        end subroutine JsonValue_destroy
     end interface
 
     type, extends(JsonValue), public :: JsonNull
@@ -85,9 +132,9 @@ module netorcai_json
         procedure :: clone => JsonString_clone
     end type JsonString
 
-    ! Funny note: type apparently usefull for gfortran to not segfault... 
+    ! Funny note: you cannot declare array of pointer in FORTRAN so you need this...
     type JsonItem
-        class(JsonValue), allocatable :: value
+        class(JsonValue), pointer :: value => null()
     end type JsonItem
 
     type, extends(JsonValue), public :: JsonArray
@@ -99,7 +146,7 @@ module netorcai_json
 
     type, public :: JsonPair
         character(:), allocatable :: name
-        class(JsonValue), allocatable :: value
+        class(JsonValue), pointer :: value => null()
     end type JsonPair
 
     type, extends(JsonValue), public :: JsonObject
@@ -109,12 +156,10 @@ module netorcai_json
         procedure :: clone => JsonObject_clone
     end type JsonObject
 contains
-    ! Load a Json document from a file.
-    ! If fail is not set, the function crashes on error.
     function json_load(filename, fail) result(res)
         character(*), intent(in) :: filename
         logical, optional, intent(out) :: fail
-        class(JsonValue), allocatable :: res
+        type(JsonDocument) :: res
         character(:), allocatable :: fileContent
 
         fileContent = utils_getFileContent(filename, fail)
@@ -252,6 +297,7 @@ contains
             return
         end if
 
+        res = ""
         escape = .false.
         offset = offset + 1
         fail = .false.
@@ -322,15 +368,42 @@ contains
         character(*), intent(in) :: jsonStr
         integer, intent(inout) :: offset
         logical, intent(out) :: fail
-        class(JsonValue), allocatable :: res
+        class(JsonValue), pointer :: res
+        class(JsonBool), pointer :: resBool
+        class(JsonString), pointer :: resString
+        class(JsonInteger), pointer :: resInteger
+        class(JsonNumber), pointer :: resNumber
+        class(JsonArray), pointer :: resArray
+        class(JsonObject), pointer :: resObject
         character(:), allocatable :: tmpStr
-        class(JsonValue), allocatable :: tmpValue
-        type(JsonItem), dimension(:), allocatable :: tmpArray
-        type(JsonPair), dimension(:), allocatable :: tmpObject
+        type(JsonItem), pointer :: tmpItem
+        type(JsonPair), pointer :: tmpPair
+        class(JsonValue), pointer :: tmpValue
+        type(JsonItem), dimension(:), pointer :: tmpArray
+        type(JsonItem), dimension(:), pointer :: tmpArraySave
+        type(JsonPair), dimension(:), pointer :: tmpObject
+        type(JsonPair), dimension(:), pointer :: tmpObjectSave
         integer(8) :: tmpInt
         real(8) :: tmpReal
 
+        ! TODO: free memory when error occurs with a GOTO-based error recovery 
+
         fail = .false.
+        res => null()
+
+        ! For debugging purposes
+        resBool => null()
+        resString => null()
+        resInteger => null()
+        resNumber => null()
+        resArray => null()
+        resObject => null()
+        tmpItem => null()
+        tmpPair => null()
+        tmpArray => null()
+        tmpArraySave => null()
+        tmpObject => null()
+        tmpObjectSave => null()
 
         call json_skipSpaces(jsonStr, offset)
 
@@ -343,32 +416,41 @@ contains
             case('n')
                 fail = .not. json_expect(jsonStr, "null", offset)
                 if(fail) return
-                res = JsonNull()
+                allocate(JsonNull :: res)
 
             case('t')
                 fail = .not. json_expect(jsonStr, "true", offset)
                 if(fail) return
-                res = JsonBool(.true.)
+                allocate(resBool)
+                resBool%value = .true.
+                res => resBool
 
             case('f')
                 fail = .not. json_expect(jsonStr, "false", offset)
                 if(fail) return
-                res = JsonBool(.false.)
+                allocate(resBool)
+                resBool%value = .false.
+                res => resBool
 
             case('"')
                 tmpStr = json_parseString(jsonStr, offset, fail)
                 if(fail) return
-                res = JsonString(tmpStr)
+                allocate(resString)
+                call move_alloc(tmpStr, resString%value)
+                res => resString
 
             case('[')
                 offset = offset + 1
-                allocate(tmpArray(0)) ! TODO: check this
+                allocate(tmpArray(0))
                 call json_skipSpaces(jsonStr, offset)
                 if(.not. json_expect(jsonStr, ']', offset)) then
                     do
-                        tmpValue = json_llParse(jsonStr, offset, fail)
+                        tmpValue => json_llParse(jsonStr, offset, fail)
                         if(fail) return
-                        tmpArray = [tmpArray, JsonItem(tmpValue)] ! This is a concatenation in FORTRAN !
+                        allocate(tmpArraySave(size(tmpArray)+1)) ! Needed since FORTRAN copies MUST not alias
+                        tmpArraySave = [tmpArray, JsonItem(tmpValue)] ! This is a concatenation in FORTRAN !
+                        deallocate(tmpArray)
+                        tmpArray => tmpArraySave
                         call json_skipSpaces(jsonStr, offset)
 
                         if(json_expect(jsonStr, ',', offset)) then
@@ -381,7 +463,10 @@ contains
                         end if
                     end do
                 end if
-                res = JsonArray(tmpArray) ! TODO: cause a segfault of the compiler!!!
+                allocate(resArray)
+                resArray%value = tmpArray
+                deallocate(tmpArray)
+                res => resArray
 
             case('{')
                 offset = offset + 1
@@ -395,9 +480,12 @@ contains
                         call json_skipSpaces(jsonStr, offset)
                         fail = .not. json_expect(jsonStr, ':', offset)
                         if(fail) return
-                        tmpValue = json_llParse(jsonStr, offset, fail)
+                        tmpValue => json_llParse(jsonStr, offset, fail)
                         if(fail) return
-                        tmpObject = [tmpObject, JsonPair(tmpStr, tmpValue)]
+                        allocate(tmpObjectSave(size(tmpObject)+1))
+                        tmpObjectSave = [tmpObject, JsonPair(tmpStr, tmpValue)]
+                        deallocate(tmpObject)
+                        tmpObject => tmpObjectSave
                         call json_skipSpaces(jsonStr, offset)
 
                         if(json_expect(jsonStr, ',', offset)) then
@@ -410,7 +498,11 @@ contains
                         end if
                     end do
                 end if
-                res = JsonObject(tmpObject)
+                allocate(resObject)
+                allocate(resObject%value(size(tmpObject)))
+                resObject%value = tmpObject
+                deallocate(tmpObject)
+                res => resObject
 
             case("-", "0": "9")
                 ! TODO fix: allow numbers >= 10 starting with 0 (should not be)
@@ -429,9 +521,13 @@ contains
                         if(fail) return
                         tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     end if
-                    res = JsonNumber(tmpReal)
+                    allocate(resNumber)
+                    resNumber%value = tmpReal
+                    res => resNumber
                 else
-                    res = JsonInteger(tmpInt)
+                    allocate(resInteger)
+                    resInteger%value = tmpInt
+                    res => resInteger
                 end if
 
             case default
@@ -440,17 +536,16 @@ contains
         end select
     end function json_llParse
 
-    ! Load a Json document from a string
-    ! If fail is not set, the function crashes on error.
     function json_parse(jsonStr, fail) result(res)
         character(*), intent(in) :: jsonStr
         logical, optional, intent(out) :: fail
-        class(JsonValue), allocatable :: res
+        type(JsonDocument) :: res
+        class(JsonValue), pointer :: resPtr
         integer :: offset
         logical :: internalFail
 
         offset = 1
-        res = json_llParse(jsonStr, offset, internalFail)
+        resPtr => json_llParse(jsonStr, offset, internalFail)
 
         ! Fail if there is non-space trailing characters
         call json_skipSpaces(jsonStr, offset)
@@ -462,10 +557,43 @@ contains
             print *, "Parse error"
             stop 1
         end if
+
+        if(.not. internalFail) then
+            res%value => resPtr
+        else
+            ! TODO: call destroy on value (in the case of trailing characters)
+            res%value => null() ! For debugging purposes
+        end if
     end function json_parse
 
-    ! Save a Json document to a file.
-    ! If fail is not set, the function crashes on error.
+    function JsonDocument_toString(this) result(res)
+        class(JsonDocument), intent(in) :: this
+        character(:), allocatable :: res
+
+        res = this%value%toString()
+    end function JsonDocument_toString
+
+    function JsonDocument_clone(this) result(res)
+        class(JsonDocument), intent(in) :: this
+        type(JsonDocument), allocatable :: res
+
+        res = JsonDocument(this%value)
+    end function JsonDocument_clone
+
+    subroutine JsonDocument_saveTo(this, filename, fail)
+        class(JsonDocument), intent(in) :: this
+        character(*), intent(in) :: filename
+        logical, optional, intent(inout) :: fail
+
+        call this%value%saveTo(filename, fail)
+    end subroutine JsonDocument_saveTo
+
+    subroutine JsonDocument_destructor(this)
+        type(JsonDocument), intent(inout) :: this
+
+        ! TODO
+    end subroutine JsonDocument_destructor
+
     subroutine JsonValue_saveTo(this, filename, fail)
         class(JsonValue), intent(in) :: this
         character(*), intent(in) :: filename
@@ -474,21 +602,21 @@ contains
         call utils_setFileContent(filename, this%toString(), fail)
     end subroutine JsonValue_saveTo
 
-    function JsonNull_toString(this) result(res)
+    recursive function JsonNull_toString(this) result(res)
         class(JsonNull), intent(in) :: this
         character(:), allocatable :: res
 
         res = "null"
     end function JsonNull_toString
 
-    function JsonNull_clone(this) result(res)
+    recursive function JsonNull_clone(this) result(res)
         class(JsonNull), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonValue), pointer :: res
 
-        res = JsonNull()
+        allocate(JsonNull :: res)
     end function JsonNull_clone
 
-    function JsonBool_toString(this) result(res)
+    recursive function JsonBool_toString(this) result(res)
         class(JsonBool), intent(in) :: this
         character(:), allocatable :: res
 
@@ -499,56 +627,68 @@ contains
         end if
     end function JsonBool_toString
 
-    function JsonBool_clone(this) result(res)
+    recursive function JsonBool_clone(this) result(res)
         class(JsonBool), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonBool), pointer :: localRes
+        class(JsonValue), pointer :: res
 
-        res = JsonBool(this%value)
+        allocate(JsonBool :: localRes)
+        localRes%value = this%value
+        res => localRes
     end function JsonBool_clone
 
-    function JsonInteger_toString(this) result(res)
+    recursive function JsonInteger_toString(this) result(res)
         class(JsonInteger), intent(in) :: this
         character(:), allocatable :: res
 
         res = utils_longToStr(this%value)
     end function JsonInteger_toString
 
-    function JsonInteger_clone(this) result(res)
+    recursive function JsonInteger_clone(this) result(res)
         class(JsonInteger), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonInteger), pointer :: localRes
+        class(JsonValue), pointer :: res
 
-        res = JsonInteger(this%value)
+        allocate(JsonInteger :: localRes)
+        localRes%value = this%value
+        res => localRes
     end function JsonInteger_clone
 
-    function JsonNumber_toString(this) result(res)
+    recursive function JsonNumber_toString(this) result(res)
         class(JsonNumber), intent(in) :: this
         character(:), allocatable :: res
 
         res = utils_doubleToStr(this%value)
     end function JsonNumber_toString
 
-    function JsonNumber_clone(this) result(res)
+    recursive function JsonNumber_clone(this) result(res)
         class(JsonNumber), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonNumber), pointer :: localRes
+        class(JsonValue), pointer :: res
 
-        res = JsonNumber(this%value)
+        allocate(JsonNumber :: localRes)
+        localRes%value = this%value
+        res => localRes
     end function JsonNumber_clone
 
-    function JsonString_toString(this) result(res)
+    recursive function JsonString_toString(this) result(res)
         class(JsonString), intent(in) :: this
         character(:), allocatable :: res
 
         res = '"' // utils_strReplace(this%value, '"', '\"') // '"'
     end function JsonString_toString
 
-    function JsonString_clone(this) result(res)
+    recursive function JsonString_clone(this) result(res)
         class(JsonString), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonString), pointer :: localRes
+        class(JsonValue), pointer :: res
 
-        res = JsonString(this%value)
+        allocate(JsonString :: localRes)
+        localRes%value = this%value
+        res => localRes
     end function JsonString_clone
 
-    function JsonArray_toString(this) result(res)
+    recursive function JsonArray_toString(this) result(res)
         class(JsonArray), intent(in) :: this
         character(:), allocatable :: res
         integer :: i
@@ -566,19 +706,23 @@ contains
         res = res // ']'
     end function JsonArray_toString
 
-    function JsonArray_clone(this) result(res)
+    recursive function JsonArray_clone(this) result(res)
         class(JsonArray), intent(in) :: this
-        class(JsonValue), allocatable :: res
-        !class(JsonArray), allocatable :: localRes
-        class(JsonValue), dimension(:), allocatable :: copy
+        class(JsonArray), pointer :: localRes
+        class(JsonValue), pointer :: res
+        integer :: i
 
-        ! TODO: duplicate the array? => YES!
-        !allocate(copy(size(this%value)), source=this%value)
-        !localRes = JsonArray(copy)
-        !res = JsonArray(copy)
+        allocate(JsonArray :: localRes)
+        allocate(localRes%value(size(this%value)))
+
+        do i = 1, size(this%value)
+            localRes%value(i)%value => this%value(i)%value%clone()
+        end do
+
+        res => localRes
     end function JsonArray_clone
 
-    function JsonObject_toString(this) result(res)
+    recursive function JsonObject_toString(this) result(res)
         class(JsonObject), intent(in) :: this
         character(:), allocatable :: res
         character(:), allocatable :: serializedName
@@ -598,12 +742,21 @@ contains
         res = res // '}'
     end function JsonObject_toString
 
-    function JsonObject_clone(this) result(res)
+    recursive function JsonObject_clone(this) result(res)
         class(JsonObject), intent(in) :: this
-        class(JsonValue), allocatable :: res
+        class(JsonObject), pointer :: localRes
+        class(JsonValue), pointer :: res
+        integer :: i
 
-        ! TODO: duplicate the array? => YES!
-        res = JsonObject(this%value)
+        allocate(JsonObject :: localRes)
+        allocate(localRes%value(size(this%value)))
+
+        do i = 1, size(this%value)
+            localRes%value(i)%name = this%value(i)%name
+            localRes%value(i)%value => this%value(i)%value%clone()
+        end do
+
+        res => localRes
     end function JsonObject_clone
 end module netorcai_json
 
