@@ -54,6 +54,12 @@ module netorcai_json
         ! Proxy to the JsonValue class. See it for more information.
         procedure :: saveTo => JsonDocument_saveTo
 
+        ! Manual destruction: should not be called unless the destructor is not
+        ! automatically called (which should not be the case, but in practice it is...).
+        ! Note that this method deallocate its content but not itself, 
+        ! which is needed if this is an allocated pointer.
+        procedure :: destroy => JsonDocument_destroy
+
         ! Clean all child nodes when destroyed
         final :: JsonDocument_destructor
     end type JsonDocument
@@ -74,8 +80,10 @@ module netorcai_json
         ! If fail is not set, the function crashes on error.
         procedure :: saveTo => JsonValue_saveTo
 
-        ! TODO
-        ! procedure(JsonValue_destroy), deferred :: destroy
+        ! Deallocate all children and internal structures.
+        ! Note that this method deallocate its content but not itself, 
+        ! which is needed if this is an allocated pointer.
+        procedure :: destroy => JsonValue_destroy
     end type JsonValue
 
     ! For deferred procedures
@@ -91,11 +99,6 @@ module netorcai_json
             class(JsonValue), intent(in) :: this
             class(JsonValue), pointer :: res
         end function JsonValue_clone
-
-        subroutine JsonValue_destroy(this)
-            import JsonValue
-            class(JsonValue), intent(in) :: this
-        end subroutine JsonValue_destroy
     end interface
 
     type, extends(JsonValue), public :: JsonNull
@@ -130,6 +133,7 @@ module netorcai_json
     contains
         procedure :: toString => JsonString_toString
         procedure :: clone => JsonString_clone
+        procedure :: destroy => JsonString_destroy
     end type JsonString
 
     ! Funny note: you cannot declare array of pointer in FORTRAN so you need this...
@@ -142,6 +146,7 @@ module netorcai_json
     contains
         procedure :: toString => JsonArray_toString
         procedure :: clone => JsonArray_clone
+        procedure :: destroy => JsonArray_destroy
     end type JsonArray
 
     type, public :: JsonPair
@@ -154,6 +159,7 @@ module netorcai_json
     contains
         procedure :: toString => JsonObject_toString
         procedure :: clone => JsonObject_clone
+        procedure :: destroy => JsonObject_destroy
     end type JsonObject
 contains
     function json_load(filename, fail) result(res)
@@ -588,10 +594,24 @@ contains
         call this%value%saveTo(filename, fail)
     end subroutine JsonDocument_saveTo
 
+    subroutine JsonDocument_destroy(this)
+        class(JsonDocument), intent(inout) :: this
+
+        if(associated(this%value)) then
+            call this%value%destroy()
+            deallocate(this%value)
+            nullify(this%value) ! To disable the destructor
+        end if
+    end subroutine JsonDocument_destroy
+
     subroutine JsonDocument_destructor(this)
         type(JsonDocument), intent(inout) :: this
 
-        ! TODO
+        if(associated(this%value)) then
+            call this%value%destroy()
+            deallocate(this%value)
+            nullify(this%value) ! For debugging purpose
+        end if
     end subroutine JsonDocument_destructor
 
     subroutine JsonValue_saveTo(this, filename, fail)
@@ -601,6 +621,12 @@ contains
 
         call utils_setFileContent(filename, this%toString(), fail)
     end subroutine JsonValue_saveTo
+
+    recursive subroutine JsonValue_destroy(this)
+        class(JsonValue), intent(inout) :: this
+
+        ! Do nothing
+    end subroutine JsonValue_destroy
 
     recursive function JsonNull_toString(this) result(res)
         class(JsonNull), intent(in) :: this
@@ -758,5 +784,45 @@ contains
 
         res => localRes
     end function JsonObject_clone
+
+    recursive subroutine JsonString_destroy(this)
+        class(JsonString), intent(inout) :: this
+
+        if(allocated(this%value)) then
+            deallocate(this%value)
+        end if
+    end subroutine JsonString_destroy
+
+    recursive subroutine JsonArray_destroy(this)
+        class(JsonArray), intent(inout) :: this
+        integer :: i
+
+        if(allocated(this%value)) then
+            do i = 1, size(this%value)
+                call this%value(i)%value%destroy()
+                deallocate(this%value(i)%value)
+            end do
+
+            deallocate(this%value)
+        end if
+    end subroutine JsonArray_destroy
+
+    recursive subroutine JsonObject_destroy(this)
+        class(JsonObject), intent(inout) :: this
+        integer :: i
+
+        if(allocated(this%value)) then
+            do i = 1, size(this%value)
+                if(allocated(this%value(i)%name)) then
+                    deallocate(this%value(i)%name)
+                end if
+
+                call this%value(i)%value%destroy()
+                deallocate(this%value(i)%value)
+            end do
+
+            deallocate(this%value)
+        end if
+    end subroutine JsonObject_destroy
 end module netorcai_json
 
