@@ -27,15 +27,15 @@ module netorcai_json
     public :: json_parse
 
     ! TODO
-    !public :: json_makeNull
-    !public :: json_makeBool
-    !public :: json_makeInteger
-    !public :: json_makeNumber
-    !public :: json_makeString
-    !public :: json_makeArray
-    !public :: json_makeObject
-    !public :: json_addPair
-    !public :: json_addItem
+    public :: json_makeNull
+    public :: json_makeBool
+    public :: json_makeInt
+    public :: json_makeLong
+    public :: json_makeFloat
+    public :: json_makeDouble
+    public :: json_makeString
+    public :: json_makeArray
+    public :: json_makeObject
 
     ! Helper class to control the memory thanks to scoping
     ! (useful in FORTRAN 2008 mainly)
@@ -147,6 +147,7 @@ module netorcai_json
         procedure :: toString => JsonArray_toString
         procedure :: clone => JsonArray_clone
         procedure :: destroy => JsonArray_destroy
+        procedure :: add => JsonArray_add
     end type JsonArray
 
     type, public :: JsonPair
@@ -160,6 +161,7 @@ module netorcai_json
         procedure :: toString => JsonObject_toString
         procedure :: clone => JsonObject_clone
         procedure :: destroy => JsonObject_destroy
+        procedure :: add => JsonObject_add
     end type JsonObject
 contains
     function json_load(filename, fail) result(res)
@@ -572,6 +574,74 @@ contains
         end if
     end function json_parse
 
+    function json_makeNull() result(res)
+        type(JsonNull), pointer :: res
+
+        allocate(res)
+    end function json_makeNull
+
+    function json_makeBool(value) result(res)
+        logical, intent(in) :: value
+        type(JsonBool), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeBool
+
+    function json_makeInt(value) result(res)
+        integer(4), intent(in) :: value
+        type(JsonInteger), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeInt
+
+    function json_makeLong(value) result(res)
+        integer(8), intent(in) :: value
+        type(JsonInteger), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeLong
+
+    function json_makeFloat(value) result(res)
+        real(4), intent(in) :: value
+        type(JsonNumber), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeFloat
+
+    function json_makeDouble(value) result(res)
+        real(8), intent(in) :: value
+        type(JsonNumber), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeDouble
+
+    function json_makeString(value) result(res)
+        character(*), intent(in) :: value
+        type(JsonString), pointer :: res
+
+        allocate(res)
+        res%value = value
+    end function json_makeString
+
+    function json_makeArray() result(res)
+        type(JsonArray), pointer :: res
+
+        allocate(res)
+        allocate(res%value(0))
+    end function json_makeArray
+
+    function json_makeObject() result(res)
+        type(JsonObject), pointer :: res
+
+        allocate(res)
+        allocate(res%value(0))
+    end function json_makeObject
+
     function JsonDocument_toString(this) result(res)
         class(JsonDocument), intent(in) :: this
         character(:), allocatable :: res
@@ -714,6 +784,14 @@ contains
         res => localRes
     end function JsonString_clone
 
+    recursive subroutine JsonString_destroy(this)
+        class(JsonString), intent(inout) :: this
+
+        if(allocated(this%value)) then
+            deallocate(this%value)
+        end if
+    end subroutine JsonString_destroy
+
     recursive function JsonArray_toString(this) result(res)
         class(JsonArray), intent(in) :: this
         character(:), allocatable :: res
@@ -747,6 +825,31 @@ contains
 
         res => localRes
     end function JsonArray_clone
+
+    subroutine JsonArray_add(this, value)
+        class(JsonArray), intent(inout) :: this
+        class(JsonValue), intent(in) :: value
+        type(JsonItem), dimension(:), allocatable :: tmp
+
+        ! Innefficient, but simple
+        ! The copy prevents aliasing issues
+        tmp = [this%value, JsonItem(value)]
+        this%value = tmp
+    end subroutine JsonArray_add
+
+    recursive subroutine JsonArray_destroy(this)
+        class(JsonArray), intent(inout) :: this
+        integer :: i
+
+        if(allocated(this%value)) then
+            do i = 1, size(this%value)
+                call this%value(i)%value%destroy()
+                deallocate(this%value(i)%value)
+            end do
+
+            deallocate(this%value)
+        end if
+    end subroutine JsonArray_destroy
 
     recursive function JsonObject_toString(this) result(res)
         class(JsonObject), intent(in) :: this
@@ -785,27 +888,17 @@ contains
         res => localRes
     end function JsonObject_clone
 
-    recursive subroutine JsonString_destroy(this)
-        class(JsonString), intent(inout) :: this
+    subroutine JsonObject_add(this, name, value)
+        class(JsonObject), intent(inout) :: this
+        character(*), intent(in) :: name
+        class(JsonValue), intent(in) :: value
+        type(JsonPair), dimension(:), allocatable :: tmp
 
-        if(allocated(this%value)) then
-            deallocate(this%value)
-        end if
-    end subroutine JsonString_destroy
-
-    recursive subroutine JsonArray_destroy(this)
-        class(JsonArray), intent(inout) :: this
-        integer :: i
-
-        if(allocated(this%value)) then
-            do i = 1, size(this%value)
-                call this%value(i)%value%destroy()
-                deallocate(this%value(i)%value)
-            end do
-
-            deallocate(this%value)
-        end if
-    end subroutine JsonArray_destroy
+        ! Innefficient, but simple
+        ! The copy prevents aliasing issues
+        tmp = [this%value, JsonPair(name, value)]
+        this%value = tmp
+    end subroutine JsonObject_add
 
     recursive subroutine JsonObject_destroy(this)
         class(JsonObject), intent(inout) :: this
