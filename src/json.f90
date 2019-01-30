@@ -371,26 +371,16 @@ contains
 
     ! Internal function
     ! Funny note: slices can be used in FORTRAN, but the copy ellision is an optional optimisation.
-    ! To avoid a O(n**2) parsing algorithm, string slices 
+    ! To avoid a O(n**2) parsing algorithm, string slices are replaced by the tuple (str, offset)
     recursive function json_llParse(jsonStr, offset, fail) result(res)
         character(*), intent(in) :: jsonStr
         integer, intent(inout) :: offset
         logical, intent(out) :: fail
         class(JsonValue), pointer :: res
-        class(JsonBool), pointer :: resBool
-        class(JsonString), pointer :: resString
-        class(JsonInteger), pointer :: resInteger
-        class(JsonNumber), pointer :: resNumber
         class(JsonArray), pointer :: resArray
         class(JsonObject), pointer :: resObject
         character(:), allocatable :: tmpStr
-        type(JsonItem), pointer :: tmpItem
-        type(JsonPair), pointer :: tmpPair
         class(JsonValue), pointer :: tmpValue
-        type(JsonItem), dimension(:), pointer :: tmpArray
-        type(JsonItem), dimension(:), pointer :: tmpArraySave
-        type(JsonPair), dimension(:), pointer :: tmpObject
-        type(JsonPair), dimension(:), pointer :: tmpObjectSave
         integer(8) :: tmpInt
         real(8) :: tmpReal
 
@@ -398,20 +388,8 @@ contains
 
         fail = .false.
         res => null()
-
-        ! For debugging purposes
-        resBool => null()
-        resString => null()
-        resInteger => null()
-        resNumber => null()
-        resArray => null()
-        resObject => null()
-        tmpItem => null()
-        tmpPair => null()
-        tmpArray => null()
-        tmpArraySave => null()
-        tmpObject => null()
-        tmpObjectSave => null()
+        resArray => null() ! For debugging purposes
+        resObject => null() ! For debugging purposes
 
         call json_skipSpaces(jsonStr, offset)
 
@@ -424,41 +402,33 @@ contains
             case('n')
                 fail = .not. json_expect(jsonStr, "null", offset)
                 if(fail) return
-                allocate(JsonNull :: res)
+                res => json_makeNull()
 
             case('t')
                 fail = .not. json_expect(jsonStr, "true", offset)
                 if(fail) return
-                allocate(resBool)
-                resBool%value = .true.
-                res => resBool
+                res => json_makeBool(.true.)
 
             case('f')
                 fail = .not. json_expect(jsonStr, "false", offset)
                 if(fail) return
-                allocate(resBool)
-                resBool%value = .false.
-                res => resBool
+                res => json_makeBool(.false.)
 
             case('"')
                 tmpStr = json_parseString(jsonStr, offset, fail)
                 if(fail) return
-                allocate(resString)
-                call move_alloc(tmpStr, resString%value)
-                res => resString
+                res => json_makeString(tmpStr)
 
             case('[')
                 offset = offset + 1
-                allocate(tmpArray(0))
+                resArray => json_makeArray()
+                res => resArray
                 call json_skipSpaces(jsonStr, offset)
                 if(.not. json_expect(jsonStr, ']', offset)) then
                     do
                         tmpValue => json_llParse(jsonStr, offset, fail)
                         if(fail) return
-                        allocate(tmpArraySave(size(tmpArray)+1)) ! Needed since FORTRAN copies MUST not alias
-                        tmpArraySave = [tmpArray, JsonItem(tmpValue)] ! This is a concatenation in FORTRAN !
-                        deallocate(tmpArray)
-                        tmpArray => tmpArraySave
+                        call resArray%add(tmpValue)
                         call json_skipSpaces(jsonStr, offset)
 
                         if(json_expect(jsonStr, ',', offset)) then
@@ -471,14 +441,11 @@ contains
                         end if
                     end do
                 end if
-                allocate(resArray)
-                resArray%value = tmpArray
-                deallocate(tmpArray)
                 res => resArray
 
             case('{')
                 offset = offset + 1
-                allocate(tmpObject(0))
+                resObject => json_makeObject()
                 call json_skipSpaces(jsonStr, offset)
                 if(.not. json_expect(jsonStr, '}', offset)) then
                     do
@@ -490,10 +457,7 @@ contains
                         if(fail) return
                         tmpValue => json_llParse(jsonStr, offset, fail)
                         if(fail) return
-                        allocate(tmpObjectSave(size(tmpObject)+1))
-                        tmpObjectSave = [tmpObject, JsonPair(tmpStr, tmpValue)]
-                        deallocate(tmpObject)
-                        tmpObject => tmpObjectSave
+                        call resObject%add(tmpStr, tmpValue)
                         call json_skipSpaces(jsonStr, offset)
 
                         if(json_expect(jsonStr, ',', offset)) then
@@ -506,10 +470,6 @@ contains
                         end if
                     end do
                 end if
-                allocate(resObject)
-                allocate(resObject%value(size(tmpObject)))
-                resObject%value = tmpObject
-                deallocate(tmpObject)
                 res => resObject
 
             case("-", "0": "9")
@@ -529,13 +489,9 @@ contains
                         if(fail) return
                         tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     end if
-                    allocate(resNumber)
-                    resNumber%value = tmpReal
-                    res => resNumber
+                    res => json_makeDouble(tmpReal)
                 else
-                    allocate(resInteger)
-                    resInteger%value = tmpInt
-                    res => resInteger
+                    res => json_makeLong(tmpInt)
                 end if
 
             case default
@@ -832,8 +788,8 @@ contains
         type(JsonItem), dimension(:), allocatable :: tmp
 
         ! Innefficient, but simple
-        ! The copy prevents aliasing issues
-        tmp = [this%value, JsonItem(value)]
+        ! A copy is needed since FORTRAN copies MUST not alias and because the new size
+        tmp = [this%value, JsonItem(value)] ! This is a concatenation in FORTRAN !
         this%value = tmp
     end subroutine JsonArray_add
 
