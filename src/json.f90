@@ -26,7 +26,6 @@ module netorcai_json
     ! If fail is not set, the function crashes on error.
     public :: json_parse
 
-    ! TODO
     public :: json_makeNull
     public :: json_makeBool
     public :: json_makeInt
@@ -513,7 +512,12 @@ contains
 
         ! Fail if there is non-space trailing characters
         call json_skipSpaces(jsonStr, offset)
-        internalFail = internalFail .or. offset <= len(jsonStr)
+
+        ! Internal clean in the case of trailing characters
+        if(.not. internalFail .and. offset <= len(jsonStr)) then
+            call resPtr%destroy()
+            internalFail = .true.
+        end if
 
         if(present(fail)) then
             fail = internalFail
@@ -525,7 +529,6 @@ contains
         if(.not. internalFail) then
             res%value => resPtr
         else
-            ! TODO: call destroy on value (in the case of trailing characters)
             res%value => null() ! For debugging purposes
         end if
     end function json_parse
