@@ -41,6 +41,11 @@ module netorcai_json
     type, public :: JsonDocument
         class(JsonValue), pointer :: value => null()
     contains
+        ! TODO: add a isValid method to replace the fail out argument
+
+        ! Retrieve the root node of the document that enable then further get/set.
+        procedure :: getRoot => JsonDocument_getRoot
+
         ! Serialize the whole json document into a string.
         ! Proxy to the JsonValue class. See it for more information.
         procedure :: toString => JsonDocument_toString
@@ -66,6 +71,21 @@ module netorcai_json
     ! Main class of this module: represent an abstract json value.
     type, abstract, public :: JsonValue
     contains
+        ! Retrieve a value from the document.
+        generic, public :: get => JsonValue_getBool, JsonValue_getInt, &
+                                    JsonValue_getLong, JsonValue_getFloat, &
+                                    JsonValue_getDouble, JsonValue_getString, &
+                                    JsonValue_getArray, JsonValue_getObject
+
+        procedure, private :: JsonValue_getBool
+        procedure, private :: JsonValue_getInt
+        procedure, private :: JsonValue_getLong
+        procedure, private :: JsonValue_getFloat
+        procedure, private :: JsonValue_getDouble
+        procedure, private :: JsonValue_getString
+        procedure, private :: JsonValue_getArray
+        procedure, private :: JsonValue_getObject
+
         ! Serialize the value into a string (with its children).
         ! Return an allocated string that should be deallocated by the user.
         procedure(JsonValue_toString), deferred :: toString
@@ -601,6 +621,13 @@ contains
         allocate(res%value(0))
     end function json_makeObject
 
+    function JsonDocument_getRoot(this) result(res)
+        class(JsonDocument), intent(in) :: this
+        class(JsonValue), pointer :: res
+
+        res => this%value
+    end function JsonDocument_getRoot
+
     function JsonDocument_toString(this) result(res)
         class(JsonDocument), intent(in) :: this
         character(:), allocatable :: res
@@ -642,6 +669,169 @@ contains
             nullify(this%value) ! For debugging purpose
         end if
     end subroutine JsonDocument_destructor
+
+    subroutine json_type_mismatch(this, paramType, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: paramType
+        logical, optional, intent(out) :: fail
+        character(:), allocatable :: dynType
+
+        if(present(fail)) then
+            fail = .true.
+        else
+            select type(this)
+                type is (JsonNull)
+                    dynType = "null type"
+                type is (JsonBool)
+                    dynType = "logical"
+                type is (JsonInteger)
+                    dynType = "integer"
+                type is (JsonNumber)
+                    dynType = "real"
+                type is (JsonString)
+                    dynType = "character(:), allocatable"
+                type is (JsonArray)
+                    dynType = "type(JsonItem), dimension(:), allocatable"
+                type is (JsonObject)
+                    dynType = "type(JsonPair), dimension(:), allocatable"
+                class default
+                    dynType = "unknown"
+            end select
+        end if
+
+        print *, "Invalid get call: type mismatch between the dynamic json value (", &
+                    dynType, ") and procedure parameter (", paramType, ")"
+        stop 1
+    end subroutine json_type_mismatch
+
+    subroutine JsonValue_getBool(this, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        logical, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonBool), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonBool)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = concreteThis%value
+            class default
+                call json_type_mismatch(this, "logical", fail)
+        end select
+    end subroutine JsonValue_getBool
+
+    subroutine JsonValue_getInt(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        integer(4), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonInteger), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonInteger)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = int(concreteThis%value, kind=4)
+            class default
+                call json_type_mismatch(this, "integer(4)", fail)
+        end select
+    end subroutine JsonValue_getInt
+
+    subroutine JsonValue_getLong(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        integer(8), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonInteger), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonInteger)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = int(concreteThis%value, kind=8)
+            class default
+                call json_type_mismatch(this, "integer(8)", fail)
+        end select
+    end subroutine JsonValue_getLong
+
+    subroutine JsonValue_getFloat(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        real(4), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonNumber), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonNumber)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = real(concreteThis%value, kind=4)
+            class default
+                call json_type_mismatch(this, "real(4)", fail)
+        end select
+    end subroutine JsonValue_getFloat
+
+    subroutine JsonValue_getDouble(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        real(8), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonNumber), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonNumber)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = real(concreteThis%value, kind=8)
+            class default
+                call json_type_mismatch(this, "real(8)", fail)
+        end select
+    end subroutine JsonValue_getDouble
+
+    subroutine JsonValue_getString(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        character(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonString), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonString)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = concreteThis%value
+            class default
+                call json_type_mismatch(this, "character(:), allocatable", fail)
+        end select
+    end subroutine JsonValue_getString
+
+    subroutine JsonValue_getArray(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        type(JsonItem), dimension(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonArray), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonArray)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = concreteThis%value
+            class default
+                call json_type_mismatch(this, "type(JsonItem), dimension(:), allocatable", fail)
+        end select
+    end subroutine JsonValue_getArray
+
+    subroutine JsonValue_getObject(this, value, fail)
+        class(JsonValue), intent(in) :: this
+        class(JsonPair), dimension(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+
+        select type(this)
+            type is (JsonObject)
+                if(present(fail)) fail = .false.
+                concreteThis => this
+                value = concreteThis%value
+            class default
+                call json_type_mismatch(this, "type(JsonPair), dimension(:), allocatable", fail)
+        end select
+    end subroutine JsonValue_getObject
+
 
     subroutine JsonValue_saveTo(this, filename, fail)
         class(JsonValue), intent(in) :: this
