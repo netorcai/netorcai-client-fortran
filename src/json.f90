@@ -71,7 +71,7 @@ module netorcai_json
     ! Main class of this module: represent an abstract json value.
     type, abstract, public :: JsonValue
     contains
-        ! Retrieve a value from the document.
+        ! Retrieve the value into a native type
         generic, public :: get => JsonValue_getBool, JsonValue_getInt, &
                                     JsonValue_getLong, JsonValue_getFloat, &
                                     JsonValue_getDouble, JsonValue_getString, &
@@ -85,6 +85,21 @@ module netorcai_json
         procedure, private :: JsonValue_getString
         procedure, private :: JsonValue_getArray
         procedure, private :: JsonValue_getObject
+
+        ! Lookup the value through the current object and put it into a native type
+        generic, public :: lookup => JsonValue_lookupBool, JsonValue_lookupInt, &
+                                        JsonValue_lookupLong, JsonValue_lookupFloat, &
+                                        JsonValue_lookupDouble, JsonValue_lookupString, &
+                                        JsonValue_lookupArray, JsonValue_lookupObject
+
+        procedure, private :: JsonValue_lookupBool
+        procedure, private :: JsonValue_lookupInt
+        procedure, private :: JsonValue_lookupLong
+        procedure, private :: JsonValue_lookupFloat
+        procedure, private :: JsonValue_lookupDouble
+        procedure, private :: JsonValue_lookupString
+        procedure, private :: JsonValue_lookupArray
+        procedure, private :: JsonValue_lookupObject
 
         ! Serialize the value into a string (with its children).
         ! Return an allocated string that should be deallocated by the user.
@@ -670,6 +685,7 @@ contains
         end if
     end subroutine JsonDocument_destructor
 
+    ! Internal method use for error handling
     subroutine json_type_mismatch(this, paramType, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: paramType
@@ -697,12 +713,34 @@ contains
                 class default
                     dynType = "unknown"
             end select
-        end if
 
-        print *, "Invalid get call: type mismatch between the dynamic json value (", &
-                    dynType, ") and procedure parameter (", paramType, ")"
-        stop 1
+            print *, "Invalid get call: type mismatch between the dynamic json value (", &
+                        dynType, ") and procedure parameter (", paramType, ")"
+            stop 1
+        end if
     end subroutine json_type_mismatch
+
+    ! Internal method use for error handling
+    subroutine json_type_ensureObject(this, concreteThis, fail)
+        class(JsonValue), target, intent(in) :: this
+        class(JsonObject), optional, pointer, intent(inout) :: concreteThis
+        logical, optional, intent(out) :: fail
+
+        select type(this)
+            type is (JsonObject)
+                if(present(fail)) then
+                    fail = .false.
+                    concreteThis => this
+                end if
+            class default
+                if(present(fail)) then
+                    fail = .true.
+                else
+                    print *, "Invalid lookup call: this is not a JsonObject"
+                    stop 1
+                end if
+        end select
+    end subroutine json_type_ensureObject
 
     subroutine JsonValue_getBool(this, value, fail)
         class(JsonValue), target, intent(in) :: this
@@ -818,7 +856,7 @@ contains
 
     subroutine JsonValue_getObject(this, value, fail)
         class(JsonValue), intent(in) :: this
-        class(JsonPair), dimension(:), allocatable, intent(inout) :: value
+        type(JsonPair), dimension(:), allocatable, intent(inout) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
 
@@ -832,6 +870,166 @@ contains
         end select
     end subroutine JsonValue_getObject
 
+    ! Internal function to find a pair by its key
+    ! Return the position of the pair if found, 0 otherwise
+    ! Note: it is funny to rewrite such basic functions everytime!
+    function json_find_index(object, key) result(res)
+        class(JsonObject), intent(in) :: object
+        character(*), intent(in) :: key
+        integer :: res
+        integer :: i
+
+        res = -1
+
+        do i = 1, size(object%value)
+            if(object%value(i)%name == key) then
+                res = i
+            end if
+        end do
+    end function json_find_index
+
+    subroutine json_check_pos_found(pos, key, fail)
+        integer, intent(in) :: pos
+        character(*), intent(in) :: key
+        logical, optional, intent(out) :: fail
+
+        if(pos <= 0) then
+            if(present(fail)) then
+                fail = .true.
+            else
+                print *, "Invalid key: """, key, """ not found in this"
+                stop 1
+            end if
+        end if
+    end subroutine json_check_pos_found
+
+    subroutine JsonValue_lookupBool(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        logical, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupBool
+
+    subroutine JsonValue_lookupInt(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        integer(4), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupInt
+
+    subroutine JsonValue_lookupLong(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        integer(8), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupLong
+
+    subroutine JsonValue_lookupFloat(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        real(4), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupFloat
+
+    subroutine JsonValue_lookupDouble(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        real(8), intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupDouble
+
+    subroutine JsonValue_lookupString(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        character(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupString
+
+    subroutine JsonValue_lookupArray(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        type(JsonItem), dimension(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupArray
+
+    subroutine JsonValue_lookupObject(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        type(JsonPair), dimension(:), allocatable, intent(inout) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        call concreteThis%value(pos)%value%get(value, fail)
+    end subroutine JsonValue_lookupObject
 
     subroutine JsonValue_saveTo(this, filename, fail)
         class(JsonValue), intent(in) :: this
