@@ -171,7 +171,7 @@ module netorcai_json
     end type JsonString
 
     ! Funny note: you cannot declare array of pointer in FORTRAN so you need this...
-    type JsonItem
+    type, public :: JsonItem
         class(JsonValue), pointer :: value => null()
     end type JsonItem
 
@@ -745,7 +745,7 @@ contains
 
     subroutine JsonValue_getBool(this, value, fail)
         class(JsonValue), target, intent(in) :: this
-        logical, intent(inout) :: value
+        logical, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonBool), pointer :: concreteThis
 
@@ -761,7 +761,7 @@ contains
 
     subroutine JsonValue_getInt(this, value, fail)
         class(JsonValue), intent(in) :: this
-        integer(4), intent(inout) :: value
+        integer(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonInteger), pointer :: concreteThis
 
@@ -777,7 +777,7 @@ contains
 
     subroutine JsonValue_getLong(this, value, fail)
         class(JsonValue), intent(in) :: this
-        integer(8), intent(inout) :: value
+        integer(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonInteger), pointer :: concreteThis
 
@@ -793,7 +793,7 @@ contains
 
     subroutine JsonValue_getFloat(this, value, fail)
         class(JsonValue), intent(in) :: this
-        real(4), intent(inout) :: value
+        real(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonNumber), pointer :: concreteThis
 
@@ -809,7 +809,7 @@ contains
 
     subroutine JsonValue_getDouble(this, value, fail)
         class(JsonValue), intent(in) :: this
-        real(8), intent(inout) :: value
+        real(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonNumber), pointer :: concreteThis
 
@@ -825,7 +825,7 @@ contains
 
     subroutine JsonValue_getString(this, value, fail)
         class(JsonValue), intent(in) :: this
-        character(:), allocatable, intent(inout) :: value
+        character(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonString), pointer :: concreteThis
 
@@ -841,7 +841,7 @@ contains
 
     subroutine JsonValue_getArray(this, value, fail)
         class(JsonValue), intent(in) :: this
-        type(JsonItem), dimension(:), allocatable, intent(inout) :: value
+        type(JsonItem), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonArray), pointer :: concreteThis
 
@@ -857,7 +857,7 @@ contains
 
     subroutine JsonValue_getObject(this, value, fail)
         class(JsonValue), intent(in) :: this
-        type(JsonPair), dimension(:), allocatable, intent(inout) :: value
+        type(JsonPair), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
 
@@ -907,7 +907,7 @@ contains
     subroutine JsonValue_lookupBool(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        logical, intent(inout) :: value
+        logical, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -923,7 +923,7 @@ contains
     subroutine JsonValue_lookupInt(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        integer(4), intent(inout) :: value
+        integer(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -939,7 +939,7 @@ contains
     subroutine JsonValue_lookupLong(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        integer(8), intent(inout) :: value
+        integer(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -955,7 +955,7 @@ contains
     subroutine JsonValue_lookupFloat(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        real(4), intent(inout) :: value
+        real(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -971,7 +971,7 @@ contains
     subroutine JsonValue_lookupDouble(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        real(8), intent(inout) :: value
+        real(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -987,7 +987,7 @@ contains
     subroutine JsonValue_lookupString(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        character(:), allocatable, intent(inout) :: value
+        character(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -1003,7 +1003,7 @@ contains
     subroutine JsonValue_lookupArray(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        type(JsonItem), dimension(:), allocatable, intent(inout) :: value
+        type(JsonItem), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
@@ -1019,7 +1019,7 @@ contains
     subroutine JsonValue_lookupObject(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        type(JsonPair), dimension(:), allocatable, intent(inout) :: value
+        type(JsonPair), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         integer :: pos
