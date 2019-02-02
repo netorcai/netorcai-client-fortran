@@ -97,29 +97,33 @@ contains
 
     ! Convert a non-prefixed hexadecimal string to an integer
     ! If fail is not set, the function end silently
-    function utils_hexToInt(str, fail) result(outValue)
+    function utils_hexToInt(str, fail) result(res)
         character(*), intent(in) :: str
         logical, optional, intent(out) :: fail
-        integer :: i, tmp, outValue
-        integer :: value
+        integer :: i, tmp
+        integer :: res
 
-        value = 0
+        res = 0
+
+        if(present(fail)) then
+            fail = .false.
+        end if
 
         do i = 1, len(str)
             tmp = ichar(str(i:i))
 
             ! If overflow (allow signed overflow)
-            if(value >= ishft(1, 28) .and. present(fail)) then
+            if(res >= ishft(1, 28) .and. present(fail)) then
                 fail = .true.
                 return
             end if
 
             if(tmp >= ichar('0') .and. tmp <= ichar('9')) then
-                value = value * 16 + (tmp - ichar('0'))
+                res = res * 16 + (tmp - ichar('0'))
             elseif(tmp >= ichar('A') .and. tmp <= ichar('F')) then
-                value = value * 16 + (tmp - ichar('A') + 10)
+                res = res * 16 + (tmp - ichar('A') + 10)
             elseif(tmp >= ichar('a') .and. tmp <= ichar('f')) then
-                value = value * 16 + (tmp - ichar('a') + 10)
+                res = res * 16 + (tmp - ichar('a') + 10)
             elseif(present(fail)) then
                 fail = .true.
                 return
@@ -231,10 +235,15 @@ contains
         integer :: unit, status
         logical :: internalFail
 
-        internalFail = .false.
-
         unit = utils_getFileUnit()
-        open(unit=unit, file=filename, status="new")
+
+        if(present(fail)) then
+            open(unit=unit, file=filename, iostat=iostat, status="new")
+            fail = iostat /= 0
+            if(fail) return
+        else
+            open(unit=unit, file=filename, status="new")
+        end if
 
         do while(.true.)
             write(unit, "(a)", iostat=status) content
