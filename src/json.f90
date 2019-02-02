@@ -1211,7 +1211,7 @@ contains
                 res = res // ","
             end if
 
-            serializedName = utils_strReplace(this%value(i)%name, '"', '\"')
+            serializedName = '"' // utils_strReplace(this%value(i)%name, '"', '\"') // '"'
             res = res // serializedName // ':' // this%value(i)%value%toString()
         end do
 
