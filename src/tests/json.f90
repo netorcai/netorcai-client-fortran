@@ -12,181 +12,197 @@ contains
 
     subroutine test_tostring(test)
         class(unit_test_type), intent(inout) :: test
-        type(fson_value), pointer :: jsonValue
+        class(JsonValue), pointer :: jsonValue
+        class(JsonArray), pointer :: jsonArray
+        class(JsonObject), pointer :: jsonObject
         character(len=:), allocatable :: jsonStr
 
         ! Null
-        jsonValue => fson_value_create_null()
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_toLower(jsonStr), "null")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeNull()
+        call test%assert(utils_toLower(jsonValue%toString()), "null")
+        call jsonValue%destroy()
 
         ! Logical (true)
-        jsonValue => fson_value_create_logical(.true.)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_toLower(jsonStr), "true")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeBool(.true.)
+        call test%assert(utils_toLower(jsonValue%toString()), "true")
+        call jsonValue%destroy()
 
         ! Logical (false)
-        jsonValue => fson_value_create_logical(.false.)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_toLower(jsonStr), "false")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeBool(.false.)
+        call test%assert(utils_toLower(jsonValue%toString()), "false")
+        call jsonValue%destroy()
 
         ! Positive integers (int)
-        jsonValue => fson_value_create_int(42)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr, "42")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeInt(42_4)
+        call test%assert(jsonValue%toString(), "42")
+        call jsonValue%destroy()
 
         ! Positive integers (long)
-        jsonValue => fson_value_create_long(420000000000_8)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr, "420000000000")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeLong(420000000000_8)
+        call test%assert(jsonValue%toString(), "420000000000")
+        call jsonValue%destroy()
 
         ! Negative integers (int)
-        jsonValue => fson_value_create_int(-42)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr, "-42")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeInt(-42_4)
+        call test%assert(jsonValue%toString(), "-42")
+        call jsonValue%destroy()
 
         ! Negative integers (long)
-        jsonValue => fson_value_create_long(-420000000000_8)
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr, "-420000000000")
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeLong(-420000000000_8)
+        call test%assert(jsonValue%toString(), "-420000000000")
+        call jsonValue%destroy()
 
-        ! Reals (float)
-        jsonValue => fson_value_create_float(3.1415926535_4)
-        jsonStr = fson_value_toString(jsonValue)
+        ! Positive reals (float)
+        jsonValue => json_makeFloat(3.1415926535_4)
+        jsonStr = jsonValue%toString()
         call test%assert(jsonStr(1:6), "3.1415")
-        call fson_destroy(jsonValue)
+        call jsonValue%destroy()
 
-        ! Reals (double)
-        jsonValue => fson_value_create_double(3.1415926535_8)
-        jsonStr = fson_value_toString(jsonValue)
+        ! Negative reals (float)
+        jsonValue => json_makeFloat(-3.1415926535_4)
+        jsonStr = jsonValue%toString()
+        call test%assert(jsonStr(1:7), "-3.1415")
+        call jsonValue%destroy()
+
+        ! Positive reals (double)
+        jsonValue => json_makeDouble(3.1415926535_8)
+        jsonStr = jsonValue%toString()
         call test%assert(jsonStr(1:12), "3.1415926535")
-        call fson_destroy(jsonValue)
+        call jsonValue%destroy()
+
+        ! Negative reals (double)
+        jsonValue => json_makeDouble(-3.1415926535_8)
+        jsonStr = jsonValue%toString()
+        call test%assert(jsonStr(1:13), "-3.1415926535")
+        call jsonValue%destroy()
 
         ! Strings
-        jsonValue => fson_value_create_string("test")
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(jsonStr, '"test"')
-        call fson_destroy(jsonValue)
+        jsonValue => json_makeString('test')
+        call test%assert(jsonValue%toString(), '"test"')
+        call jsonValue%destroy()
+
+        ! Empty arrays
+        jsonValue => json_makeArray()
+        jsonStr = utils_strReplace(jsonValue%toString(), " ", "")
+        call test%assert(jsonStr, '[]')
+        call jsonValue%destroy()
 
         ! Arrays
-        jsonValue => fson_value_create_array()
-        call fson_value_add(jsonValue, fson_value_create_int(42))
-        call fson_value_add(jsonValue, fson_value_create_int(0))
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_strReplace(jsonStr, " ", ""), '[42,0]')
-        call fson_destroy(jsonValue)
+        jsonArray => json_makeArray()
+        call jsonArray%add(json_makeInt(42_4))
+        call jsonArray%add(json_makeInt(0_4))
+        jsonValue => jsonArray
+        jsonStr = utils_strReplace(jsonValue%toString(), " ", "")
+        call test%assert(jsonStr, '[42,0]')
+        call jsonValue%destroy()
 
-        ! Structs
-        jsonValue => fson_value_create_struct()
-        call fson_value_add_pair(jsonValue, "value", fson_value_create_int(42))
-        jsonStr = fson_value_toString(jsonValue)
-        call test%assert(utils_strReplace(jsonStr, " ", ""), '{"value":42}')
-        call fson_destroy(jsonValue)
+        ! Empty objects
+        jsonValue => json_makeObject()
+        jsonStr = utils_strReplace(jsonValue%toString(), " ", "")
+        call test%assert(jsonStr, '{}')
+        call jsonValue%destroy()
+
+        ! Objects
+        jsonObject => json_makeObject()
+        call jsonObject%add("bouh", json_makeInt(42_4))
+        call jsonObject%add("bwa", json_makeInt(0_4))
+        jsonValue => jsonObject
+        jsonStr = utils_strReplace(jsonValue%toString(), " ", "")
+        call test%assert(jsonStr, '{"bouh":42,"bwa":0}')
+        call jsonValue%destroy()
     end subroutine test_tostring
 
     subroutine test_string_escape(test)
         class(unit_test_type), intent(inout) :: test
-        type(fson_value), pointer :: jsonValue
-        character(len=256) :: jsonFixedStr
-        character(len=:), allocatable :: inJsonStr
-        character(len=:), allocatable :: outJsonStr
+        type(JsonDocument) :: doc
+        class(Jsonvalue), pointer :: jsonValue
+        character(len=:), allocatable :: inJsonStr, outJsonStr
+        logical :: fail
 
         inJsonStr = '{"NameWith\"Inside":"ValueWith\"Inside"}'
-        jsonValue => fson_parse(str=inJsonStr)
-        call fson_get(jsonValue, 'NameWith"Inside', jsonFixedStr)
-        call test%assert(trim(jsonFixedStr), 'ValueWith"Inside')
-        outJsonStr = fson_value_toString(jsonValue)
+        doc = json_parse(inJsonStr, fail)
+        call test%assert(.not. fail)
+        jsonValue => doc%getRoot()
+        call jsonValue%lookup('NameWith"Inside', outJsonStr, fail)
+        call test%assert(.not. fail)
+        call test%assert(outJsonStr, 'ValueWith"Inside')
+        outJsonStr = doc%toString()
         call test%assert(utils_strReplace(outJsonStr, " ", ""), inJsonStr)
-        call fson_destroy(jsonValue)
     end subroutine test_string_escape
 
-    subroutine test_fson_bugs(test)
+    subroutine test_parse(test)
         class(unit_test_type), intent(inout) :: test
-        type(fson_value), pointer :: jsonValue
+        type(JsonDocument) :: doc
+        logical :: fail
 
-        ! Infinite loop
-        ! jsonValue => fson_parse(str='42')
-        ! call fson_destroy(jsonValue)
-        ! call test%assert(.true.)
+        doc = json_parse('42', fail)
+        call test%assert(.not. fail)
 
-        ! Infinite loop
-        ! jsonValue => fson_parse(str='-42')
-        ! call fson_destroy(jsonValue)
-        ! call test%assert(.true.)
+        doc = json_parse('-42', fail)
+        call test%assert(.not. fail)
 
-        ! Infinite loop
-        ! jsonValue => fson_parse(str='3.141592')
-        ! call fson_destroy(jsonValue)
-        ! call test%assert(.true.)
+        doc = json_parse('3.141592')
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='""')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('""', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='"\""')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('"\""', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='"test"')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('"test"', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='null')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('null', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='true')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('true', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='false')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('false', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='{}')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('{}', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='{"value": 42}')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('{"value": 42}', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='[]')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('[]', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='[1]')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
+        doc = json_parse('[1]', fail)
+        call test%assert(.not. fail)
 
-        jsonValue => fson_parse(str='[1, 2]')
-        call fson_destroy(jsonValue)
-        call test%assert(.true.)
-    end subroutine test_fson_bugs
+        doc = json_parse('[1, 2]', fail)
+        call test%assert(.not. fail)
+    end subroutine test_parse
+
+    ! TODO: test get & lookup
 
     subroutine test_perf(test)
         class(unit_test_type), intent(inout) :: test
-        type(fson_value), pointer :: jsonValue
+        type(JsonItem), dimension(:), allocatable :: arr
+        type(JsonDocument), allocatable :: doc
+        class(JsonValue), pointer :: root
         character(len=:), allocatable :: jsonStr
+        logical :: fail
         integer :: i
 
         ! Build the string: a 50 Ko json document
         jsonStr = "[0"
         do i = 1, 10000
-            jsonStr = jsonStr // "," // utils_intToStr(i)
+            jsonStr = jsonStr // ',' // utils_intToStr(i)
         end do
         jsonStr = jsonStr // ']'
 
         ! Too slow... (150 Ko/s on my laptop)
-        jsonValue => fson_parse(str=jsonStr)
-        call fson_destroy(jsonValue)
+        doc = json_parse(jsonStr, fail)
+        call test%assert(.not. fail)
+        root => doc%getRoot()
+        call root%get(arr, fail)
+        call test%assert(.not. fail)
+        call test%assert(size(arr) == 10001)
     end subroutine test_perf
 end module netorcai_test_json
 

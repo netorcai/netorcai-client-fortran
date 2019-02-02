@@ -201,7 +201,7 @@ contains
     function json_load(filename, fail) result(res)
         character(*), intent(in) :: filename
         logical, optional, intent(out) :: fail
-        type(JsonDocument) :: res
+        type(JsonDocument), allocatable :: res
         character(:), allocatable :: fileContent
 
         fileContent = utils_getFileContent(filename, fail)
@@ -537,7 +537,7 @@ contains
     function json_parse(jsonStr, fail) result(res)
         character(*), intent(in) :: jsonStr
         logical, optional, intent(out) :: fail
-        type(JsonDocument) :: res
+        type(JsonDocument), allocatable :: res
         class(JsonValue), pointer :: resPtr
         integer :: offset
         logical :: internalFail
@@ -560,6 +560,8 @@ contains
             print *, "Parse error"
             stop 1
         end if
+
+        allocate(res)
 
         if(.not. internalFail) then
             res%value => resPtr
