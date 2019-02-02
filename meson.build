@@ -14,10 +14,11 @@ sources = [
     'src/message.f90',
     'src/client.f90'
 ]
-fson = dependency('fson',  version: '>=1.0.0', fallback: ['fson', 'fson_dep'])
 zofu = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
-netorcai_fortran = shared_library('netorcai_fortran', sources, dependencies: fson, install: true)
-netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran)
+netorcai_fortran = shared_library('netorcai_fortran', sources, install: true)
+# For strange reasons, src/json.f90 MUST be in the sources to be reincluded in dependent projects
+netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran, sources: ['src/json.f90'])
+
 
     # For unit-testing
 
@@ -31,9 +32,8 @@ endif
 foreach testName: testNames
     testSrc = join_paths(meson.current_source_dir(), 'src', 'tests', testName + '.f90')
     testLib = static_library(
-        testName + '_lib', [testSrc], 
-        link_with: netorcai_fortran,
-        dependencies: [fson, zofu])
+        testName + '_lib', [testSrc],
+        dependencies: [netorcai_fortran_dep, zofu])
     testDriverSrc = custom_target(
         testName + '_driver',
         input: testSrc,
@@ -41,9 +41,9 @@ foreach testName: testNames
         command: [zofuDriver, '@INPUT@', '@OUTPUT@']
     )
     unitTest = executable(
-        testName, [testDriverSrc, testSrc],
-        link_with: [netorcai_fortran, testLib],
-        dependencies: [fson, zofu]
+        testName, [testDriverSrc],
+        link_with: [testLib],
+        dependencies: [zofu]
     )
     test(testName, unitTest)
 endforeach
