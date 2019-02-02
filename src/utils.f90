@@ -232,8 +232,7 @@ contains
         character(*), intent(in) :: filename
         character(*), intent(in) :: content
         logical, optional, intent(out) :: fail
-        integer :: unit, status
-        logical :: internalFail
+        integer :: unit, iostat
 
         unit = utils_getFileUnit()
 
@@ -246,7 +245,7 @@ contains
         end if
 
         do while(.true.)
-            write(unit, "(a)", iostat=status) content
+            write(unit, "(a)", iostat=iostat) content
 
             ! TODO
             !if(present(fail)) then
