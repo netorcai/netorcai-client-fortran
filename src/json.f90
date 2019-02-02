@@ -723,16 +723,17 @@ contains
     ! Internal method use for error handling
     subroutine json_type_ensureObject(this, concreteThis, fail)
         class(JsonValue), target, intent(in) :: this
-        class(JsonObject), optional, pointer, intent(inout) :: concreteThis
+        class(JsonObject), optional, pointer, intent(out) :: concreteThis
         logical, optional, intent(out) :: fail
 
         select type(this)
             type is (JsonObject)
+                concreteThis => this
                 if(present(fail)) then
                     fail = .false.
-                    concreteThis => this
                 end if
             class default
+                concreteThis => null() ! For debugging purpose
                 if(present(fail)) then
                     fail = .true.
                 else
