@@ -194,7 +194,7 @@ contains
 
     ! TODO: test get & lookup
 
-    subroutine test_perf(test)
+    subroutine test_perf_arrays(test)
         class(unit_test_type), intent(inout) :: test
         type(JsonItem), dimension(:), allocatable :: arr
         type(JsonDocument), allocatable :: doc
@@ -207,10 +207,10 @@ contains
         elemCount = 64000
         allocate(character(elemCount*10) :: jsonStrBase)
 
-        ! Build the string: a 50 Ko json document
+        ! Build the string (huge json document)
         jsonStrBase(1:2) = '[0'
         cur = 3
-        do i = 1, elemCount
+        do i = 1, elemCount-1
             jsonStrBase(cur:cur) = ','
             jsonStr = utils_intToStr(i)
             jsonStrBase(cur+1:cur+len(jsonStr)) = jsonStr
@@ -230,7 +230,7 @@ contains
         root => doc%getRoot()
         call root%get(arr, fail)
         call test%assert(.not. fail)
-        call test%assert(size(arr), elemCount+1)
+        call test%assert(size(arr), elemCount)
         call arr(1)%value%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, 0)
@@ -240,16 +240,76 @@ contains
         root => arr(size(arr))%value
         call root%get(i, fail)
         call test%assert(.not. fail)
-        call test%assert(i, elemCount)
+        call test%assert(i, elemCount-1)
         deallocate(arr)
         deallocate(doc)
 
-        ! ~10 Mo/s on my laptop
+        ! 15~20 Mo/s on my laptop
         do i = 2,10
             doc = json_parse(jsonStr, fail)
             call test%assert(.not. fail)
             deallocate(doc)
         end do
-    end subroutine test_perf
+    end subroutine test_perf_arrays
+
+    subroutine test_perf_objects(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonItem), dimension(:), allocatable :: arr
+        type(JsonPair), dimension(:), allocatable :: obj
+        type(JsonDocument), allocatable :: doc
+        class(JsonValue), pointer :: root
+        character(len=:), allocatable :: jsonStrBase
+        character(len=:), allocatable :: jsonStr
+        logical :: fail
+        integer :: i, cur, elemCount
+
+        elemCount = 32000
+        jsonStr = '{"x":1,"y":2}'
+        allocate(character(elemCount*(len(jsonStr)+1)+16) :: jsonStrBase)
+
+        ! Build the string (huge json document)
+        jsonStrBase(1:len(jsonStr)+1) = '[' // jsonStr
+        cur = len(jsonStr)+2
+        do i = 1, elemCount-1
+            jsonStrBase(cur:cur) = ','
+            jsonStrBase(cur+1:cur+len(jsonStr)) = jsonStr
+            cur = cur + len(jsonStr) + 1
+        end do
+        jsonStrBase(cur:cur+1) = '] '
+        jsonStr = jsonStrBase(1:cur+1)
+
+        ! Parse the document once.
+        doc = json_parse(jsonStr, fail)
+        call test%assert(.not. fail)
+        root => doc%getRoot()
+        call root%get(arr, fail)
+        call test%assert(.not. fail)
+        call test%assert(size(arr), elemCount)
+        root => arr(1)%value
+        call root%get(obj, fail)
+        call test%assert(.not. fail)
+        call test%assert(size(obj), 2)
+        call test%assert(obj(1)%name, 'x')
+        root => obj(1)%value
+        call root%get(i, fail)
+        call test%assert(i, 1)
+        root => arr(size(arr))%value
+        call root%get(obj, fail)
+        call test%assert(.not. fail)
+        call test%assert(size(obj), 2)
+        call test%assert(obj(2)%name, 'y')
+        root => obj(2)%value
+        call root%get(i, fail)
+        call test%assert(i, 2)
+        deallocate(arr)
+        deallocate(doc)
+
+        ! 8~10 Mo/s on my laptop
+        do i = 2,10
+            doc = json_parse(jsonStr, fail)
+            call test%assert(.not. fail)
+            deallocate(doc)
+        end do
+    end subroutine test_perf_objects
 end module netorcai_test_json
 
