@@ -852,40 +852,30 @@ contains
 
     subroutine JsonValue_getArray(this, value, fail)
         class(JsonValue), intent(in) :: this
-        type(JsonItem), dimension(:), allocatable, intent(out) :: value
+        type(JsonArray), pointer, intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonArray), pointer :: concreteThis
-        integer :: i
 
         select type(this)
             type is (JsonArray)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                allocate(value(concreteThis%value%size()))
-                do i = 1, concreteThis%value%size()
-                    value(i) = concreteThis%getItem(i)
-                end do
+                value => this
             class default
+                value => null()
                 call json_type_mismatch(this, "type(JsonItem), dimension(:), allocatable", fail)
         end select
     end subroutine JsonValue_getArray
 
     subroutine JsonValue_getObject(this, value, fail)
         class(JsonValue), intent(in) :: this
-        type(JsonPair), dimension(:), allocatable, intent(out) :: value
+        type(JsonObject), pointer, intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonObject), pointer :: concreteThis
-        integer :: i
 
         select type(this)
             type is (JsonObject)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                allocate(value(concreteThis%value%size()))
-                do i = 1, concreteThis%value%size()
-                    value(i) = concreteThis%getItem(i)
-                end do
+                value => this
             class default
+                value => null()
                 call json_type_mismatch(this, "type(JsonPair), dimension(:), allocatable", fail)
         end select
     end subroutine JsonValue_getObject
@@ -1036,7 +1026,7 @@ contains
     subroutine JsonValue_lookupArray(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        type(JsonItem), dimension(:), allocatable, intent(out) :: value
+        type(JsonArray), pointer, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         type(JsonPair) :: item
@@ -1054,7 +1044,7 @@ contains
     subroutine JsonValue_lookupObject(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
         character(*), intent(in) :: key
-        type(JsonPair), dimension(:), allocatable, intent(out) :: value
+        type(JsonObject), pointer, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
         type(JsonPair) :: item

@@ -196,7 +196,8 @@ contains
 
     subroutine test_perf_arrays(test)
         class(unit_test_type), intent(inout) :: test
-        type(JsonItem), dimension(:), allocatable :: arr
+        type(JsonArray), pointer :: arr
+        type(JsonItem) :: item
         type(JsonDocument), allocatable :: doc
         class(JsonValue), pointer :: root
         character(len=:), allocatable :: jsonStrBase
@@ -230,18 +231,19 @@ contains
         root => doc%getRoot()
         call root%get(arr, fail)
         call test%assert(.not. fail)
-        call test%assert(size(arr), elemCount)
-        call arr(1)%value%get(i, fail)
+        call test%assert(arr%size(), elemCount)
+        item = arr%getItem(1)
+        call item%value%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, 0)
-        call arr(2)%value%get(i, fail)
+        item = arr%getItem(2)
+        call item%value%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, 1)
-        root => arr(size(arr))%value
-        call root%get(i, fail)
+        item = arr%getItem(arr%size())
+        call item%value%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, elemCount-1)
-        deallocate(arr)
         deallocate(doc)
 
         ! 15~20 Mo/s on my laptop
@@ -254,8 +256,10 @@ contains
 
     subroutine test_perf_objects(test)
         class(unit_test_type), intent(inout) :: test
-        type(JsonItem), dimension(:), allocatable :: arr
-        type(JsonPair), dimension(:), allocatable :: obj
+        type(JsonArray), pointer :: arr
+        type(JsonItem) :: item
+        type(JsonObject), pointer :: obj
+        type(JsonPair) :: pair
         type(JsonDocument), allocatable :: doc
         class(JsonValue), pointer :: root
         character(len=:), allocatable :: jsonStrBase
@@ -284,26 +288,23 @@ contains
         root => doc%getRoot()
         call root%get(arr, fail)
         call test%assert(.not. fail)
-        call test%assert(size(arr), elemCount)
-        root => arr(1)%value
-        call root%get(obj, fail)
+        call test%assert(arr%size(), elemCount)
+        item = arr%getItem(1)
+        call item%value%get(obj, fail)
         call test%assert(.not. fail)
-        call test%assert(size(obj), 2)
-        call test%assert(obj(1)%name, 'x')
-        root => obj(1)%value
-        call root%get(i, fail)
+        call test%assert(obj%size(), 2)
+        pair = obj%getItem(1)
+        call test%assert(pair%name, 'x')
+        call pair%value%get(i, fail)
         call test%assert(i, 1)
-        root => arr(size(arr))%value
-        deallocate(obj)
-        call root%get(obj, fail)
+        item = arr%getItem(arr%size())
+        call item%value%get(obj, fail)
         call test%assert(.not. fail)
-        call test%assert(size(obj), 2)
-        call test%assert(obj(2)%name, 'y')
-        root => obj(2)%value
-        call root%get(i, fail)
+        call test%assert(obj%size(), 2)
+        pair = obj%getItem(2)
+        call test%assert(pair%name, 'y')
+        call pair%value%get(i, fail)
         call test%assert(i, 2)
-        deallocate(obj)
-        deallocate(arr)
         deallocate(doc)
 
         ! 8~10 Mo/s on my laptop
