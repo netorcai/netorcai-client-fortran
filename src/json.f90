@@ -3,6 +3,7 @@
 !     - Allocatable classes are totally buggy (apparently both in gfortran and ifort)
 !     - Allocatable array are just buggy with ifort < 2019
 !     - Returned allocatable variables MUST be filled (crash otherwise) even when the function fail
+!     - DO NOT use constructor with structure that contain pointers (init the values, not the pointers)
 !     - Returned pointer variables cannot be initialized (otherwise it would be too safe) 
 !     - WTF: recursive functions reset its local variables to their init value if set after each call
 !         => DO NOT SET VARIABLE IN DECLARATIONS
@@ -14,6 +15,7 @@
 ! Json local library
 module netorcai_json
     use netorcai_utils
+    use netorcai_vector
 
     implicit none
     private
@@ -163,7 +165,7 @@ module netorcai_json
     end type JsonNumber
 
     type, extends(JsonValue), public :: JsonString
-        character(:), allocatable :: value
+        character(:), pointer :: value
     contains
         procedure :: toString => JsonString_toString
         procedure :: clone => JsonString_clone
@@ -176,26 +178,30 @@ module netorcai_json
     end type JsonItem
 
     type, extends(JsonValue), public :: JsonArray
-        type(JsonItem), dimension(:), allocatable :: value
+        type(Vector) :: value
     contains
         procedure :: toString => JsonArray_toString
         procedure :: clone => JsonArray_clone
         procedure :: destroy => JsonArray_destroy
         procedure :: add => JsonArray_add
+        procedure :: getItem => JsonArray_getItem
+        procedure, private :: setItem => JsonArray_setItem
     end type JsonArray
 
     type, public :: JsonPair
-        character(:), allocatable :: name
+        character(:), pointer :: name => null()
         class(JsonValue), pointer :: value => null()
     end type JsonPair
 
     type, extends(JsonValue), public :: JsonObject
-        type(JsonPair), dimension(:), allocatable :: value
+        type(Vector) :: value
     contains
         procedure :: toString => JsonObject_toString
         procedure :: clone => JsonObject_clone
         procedure :: destroy => JsonObject_destroy
         procedure :: add => JsonObject_add
+        procedure :: getItem => JsonObject_getItem
+        procedure, private :: setItem => JsonObject_setItem
     end type JsonObject
 contains
     function json_load(filename, fail) result(res)
@@ -621,6 +627,7 @@ contains
         type(JsonString), pointer :: res
 
         allocate(res)
+        allocate(character(len(value)) :: res%value)
         res%value = value
     end function json_makeString
 
@@ -628,14 +635,14 @@ contains
         type(JsonArray), pointer :: res
 
         allocate(res)
-        allocate(res%value(0))
+        res%value = Vector()
     end function json_makeArray
 
     function json_makeObject() result(res)
         type(JsonObject), pointer :: res
 
         allocate(res)
-        allocate(res%value(0))
+        res%value = Vector()
     end function json_makeObject
 
     function JsonDocument_getRoot(this) result(res)
@@ -846,12 +853,16 @@ contains
         type(JsonItem), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonArray), pointer :: concreteThis
+        integer :: i
 
         select type(this)
             type is (JsonArray)
                 if(present(fail)) fail = .false.
                 concreteThis => this
-                value = concreteThis%value
+                allocate(value(concreteThis%value%size()))
+                do i = 1, concreteThis%value%size()
+                    value(i) = concreteThis%getItem(i)
+                end do
             class default
                 call json_type_mismatch(this, "type(JsonItem), dimension(:), allocatable", fail)
         end select
@@ -862,12 +873,16 @@ contains
         type(JsonPair), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        integer :: i
 
         select type(this)
             type is (JsonObject)
                 if(present(fail)) fail = .false.
                 concreteThis => this
-                value = concreteThis%value
+                allocate(value(concreteThis%value%size()))
+                do i = 1, concreteThis%value%size()
+                    value(i) = concreteThis%getItem(i)
+                end do
             class default
                 call json_type_mismatch(this, "type(JsonPair), dimension(:), allocatable", fail)
         end select
@@ -879,13 +894,15 @@ contains
     function json_find_index(object, key) result(res)
         class(JsonObject), intent(in) :: object
         character(*), intent(in) :: key
+        type(JsonPair) :: item
         integer :: res
         integer :: i
 
         res = -1
 
-        do i = 1, size(object%value)
-            if(object%value(i)%name == key) then
+        do i = 1, object%value%size()
+            item = object%getItem(i)
+            if(item%name == key) then
                 res = i
             end if
         end do
@@ -912,6 +929,7 @@ contains
         logical, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -919,7 +937,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupBool
 
     subroutine JsonValue_lookupInt(this, key, value, fail)
@@ -928,6 +947,7 @@ contains
         integer(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -935,7 +955,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupInt
 
     subroutine JsonValue_lookupLong(this, key, value, fail)
@@ -944,6 +965,7 @@ contains
         integer(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -951,7 +973,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupLong
 
     subroutine JsonValue_lookupFloat(this, key, value, fail)
@@ -960,6 +983,7 @@ contains
         real(4), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -967,7 +991,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupFloat
 
     subroutine JsonValue_lookupDouble(this, key, value, fail)
@@ -976,6 +1001,7 @@ contains
         real(8), intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -983,7 +1009,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupDouble
 
     subroutine JsonValue_lookupString(this, key, value, fail)
@@ -992,6 +1019,7 @@ contains
         character(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -999,7 +1027,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupString
 
     subroutine JsonValue_lookupArray(this, key, value, fail)
@@ -1008,6 +1037,7 @@ contains
         type(JsonItem), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -1015,7 +1045,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupArray
 
     subroutine JsonValue_lookupObject(this, key, value, fail)
@@ -1024,6 +1055,7 @@ contains
         type(JsonPair), dimension(:), allocatable, intent(out) :: value
         logical, optional, intent(out) :: fail
         class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
         integer :: pos
 
         call json_type_ensureObject(this, concreteThis, fail)
@@ -1031,7 +1063,8 @@ contains
         pos = json_find_index(concreteThis, key)
         call json_check_pos_found(pos, key, fail)
         if(present(fail) .and. fail) return
-        call concreteThis%value(pos)%value%get(value, fail)
+        item = concreteThis%getItem(pos)
+        call item%value%get(value, fail)
     end subroutine JsonValue_lookupObject
 
     subroutine JsonValue_saveTo(this, filename, fail)
@@ -1130,6 +1163,7 @@ contains
         class(JsonValue), pointer :: res
 
         allocate(JsonString :: localRes)
+        allocate(character(len(this%value)) :: localRes%value)
         localRes%value = this%value
         res => localRes
     end function JsonString_clone
@@ -1137,24 +1171,24 @@ contains
     recursive subroutine JsonString_destroy(this)
         class(JsonString), intent(inout) :: this
 
-        if(allocated(this%value)) then
-            deallocate(this%value)
-        end if
+        deallocate(this%value)
     end subroutine JsonString_destroy
 
     recursive function JsonArray_toString(this) result(res)
         class(JsonArray), intent(in) :: this
         character(:), allocatable :: res
+        type(JsonItem) :: item
         integer :: i
 
         res = '['
 
-        do i = 1, size(this%value)
+        do i = 1, this%value%size()
             if(i > 1) then
                 res = res // ","
             end if
 
-            res = res // this%value(i)%value%toString()
+            item = this%getItem(i)
+            res = res // item%value%toString()
         end do
 
         res = res // ']'
@@ -1164,13 +1198,16 @@ contains
         class(JsonArray), intent(in) :: this
         class(JsonArray), pointer :: localRes
         class(JsonValue), pointer :: res
+        type(JsonItem) :: oldItem, newItem
         integer :: i
 
         allocate(JsonArray :: localRes)
-        allocate(localRes%value(size(this%value)))
+        localRes%value = Vector(this%value%size())
 
-        do i = 1, size(this%value)
-            localRes%value(i)%value => this%value(i)%value%clone()
+        do i = 1, this%value%size()
+            oldItem = this%getItem(i)
+            newItem%value => oldItem%value%clone()
+            call localRes%setItem(i, newItem)
         end do
 
         res => localRes
@@ -1178,44 +1215,60 @@ contains
 
     subroutine JsonArray_add(this, value)
         class(JsonArray), intent(inout) :: this
-        class(JsonValue), intent(in) :: value
-        type(JsonItem), dimension(:), allocatable :: tmp
+        class(JsonValue), pointer, intent(in) :: value
+        type(JsonItem) :: item
 
-        ! Innefficient, but simple
-        ! A copy is needed since FORTRAN copies MUST not alias and because the new size
-        tmp = [this%value, JsonItem(value)] ! This is a concatenation in FORTRAN !
-        this%value = tmp
+        item%value => value
+        call this%value%add(transfer(item, void))
     end subroutine JsonArray_add
+
+    function JsonArray_getItem(this, index) result(res)
+        class(JsonArray), intent(in) :: this
+        integer, intent(in) :: index
+        type(JsonItem) :: res, nullItem
+
+        res = transfer(this%value%get(index), nullItem)
+    end function JsonArray_getItem
+
+    subroutine JsonArray_setItem(this, index, value)
+        class(JsonArray), intent(inout) :: this
+        integer, intent(in) :: index
+        type(JsonItem), intent(in) :: value
+
+        call this%value%set(index, transfer(value, void))
+    end subroutine JsonArray_setItem
 
     recursive subroutine JsonArray_destroy(this)
         class(JsonArray), intent(inout) :: this
+        type(JsonItem) :: item
         integer :: i
 
-        if(allocated(this%value)) then
-            do i = 1, size(this%value)
-                call this%value(i)%value%destroy()
-                deallocate(this%value(i)%value)
-            end do
+        do i = 1, this%value%size()
+            item = this%getItem(i)
+            call item%value%destroy()
+            deallocate(item%value)
+        end do
 
-            deallocate(this%value)
-        end if
+        call this%value%destroy()
     end subroutine JsonArray_destroy
 
     recursive function JsonObject_toString(this) result(res)
         class(JsonObject), intent(in) :: this
         character(:), allocatable :: res
         character(:), allocatable :: serializedName
+        type(JsonPair) :: item
         integer :: i
 
         res = '{'
 
-        do i = 1, size(this%value)
+        do i = 1, this%value%size()
             if(i > 1) then
                 res = res // ","
             end if
 
-            serializedName = '"' // utils_strReplace(this%value(i)%name, '"', '\"') // '"'
-            res = res // serializedName // ':' // this%value(i)%value%toString()
+            item = this%getItem(i)
+            serializedName = '"' // utils_strReplace(item%name, '"', '\"') // '"'
+            res = res // serializedName // ':' // item%value%toString()
         end do
 
         res = res // '}'
@@ -1225,14 +1278,18 @@ contains
         class(JsonObject), intent(in) :: this
         class(JsonObject), pointer :: localRes
         class(JsonValue), pointer :: res
+        type(JsonPair) :: oldItem, newItem
         integer :: i
 
         allocate(JsonObject :: localRes)
-        allocate(localRes%value(size(this%value)))
+        localRes%value = Vector(this%value%size())
 
-        do i = 1, size(this%value)
-            localRes%value(i)%name = this%value(i)%name
-            localRes%value(i)%value => this%value(i)%value%clone()
+        do i = 1, this%value%size()
+            oldItem = this%getItem(i)
+            allocate(character(len(oldItem%name)) :: newItem%name)
+            newItem%name = oldItem%name
+            newItem%value => oldItem%value%clone()
+            call localRes%setItem(i, newItem)
         end do
 
         res => localRes
@@ -1241,31 +1298,46 @@ contains
     subroutine JsonObject_add(this, name, value)
         class(JsonObject), intent(inout) :: this
         character(*), intent(in) :: name
-        class(JsonValue), intent(in) :: value
-        type(JsonPair), dimension(:), allocatable :: tmp
+        character(:), pointer :: newName
+        class(JsonValue), pointer, intent(in) :: value
+        type(JsonPair) :: item
 
-        ! Innefficient, but simple
-        ! The copy prevents aliasing issues
-        tmp = [this%value, JsonPair(name, value)]
-        this%value = tmp
+        allocate(character(len(name)) :: newName)
+        newName = name
+        item%name => newName 
+        item%value => value
+        call this%value%add(transfer(item, void))
     end subroutine JsonObject_add
+
+    function JsonObject_getItem(this, index) result(res)
+        class(JsonObject), intent(in) :: this
+        integer, intent(in) :: index
+        type(JsonPair) :: res, nullPair
+
+        res = transfer(this%value%get(index), nullPair)
+    end function JsonObject_getItem
+
+    subroutine JsonObject_setItem(this, index, item)
+        class(JsonObject), intent(inout) :: this
+        integer, intent(in) :: index
+        type(JsonPair), intent(in) :: item
+
+        call this%value%set(index, transfer(item, void))
+    end subroutine JsonObject_setItem
 
     recursive subroutine JsonObject_destroy(this)
         class(JsonObject), intent(inout) :: this
+        type(JsonPair) :: item
         integer :: i
 
-        if(allocated(this%value)) then
-            do i = 1, size(this%value)
-                if(allocated(this%value(i)%name)) then
-                    deallocate(this%value(i)%name)
-                end if
+        do i = 1, this%value%size()
+            item = this%getItem(i)
+            deallocate(item%name)
+            call item%value%destroy()
+            deallocate(item%value)
+        end do
 
-                call this%value(i)%value%destroy()
-                deallocate(this%value(i)%value)
-            end do
-
-            deallocate(this%value)
-        end if
+        call this%value%destroy()
     end subroutine JsonObject_destroy
 end module netorcai_json
 

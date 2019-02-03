@@ -10,6 +10,7 @@ sources = [
     'src/socket.f90',
     'src/process.f90',
     'src/utils.f90',
+    'src/vector.f90',
     'src/json.f90',
     'src/message.f90',
     'src/client.f90'
@@ -17,7 +18,7 @@ sources = [
 zofu = dependency('zofu',  version: '>=0.1.0', fallback: ['zofu', 'zofu_dep'])
 netorcai_fortran = shared_library('netorcai_fortran', sources, install: true)
 # For strange reasons, src/json.f90 MUST be in the sources to be reincluded in dependent projects
-netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran, sources: ['src/json.f90'])
+netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran)
 
 
     # For unit-testing
