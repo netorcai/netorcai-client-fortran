@@ -41,30 +41,30 @@ module netorcai_json
     ! Helper class to control the memory thanks to scoping
     ! (useful in FORTRAN 2008 mainly)
     type, public :: JsonDocument
-        class(JsonValue), pointer :: value => null()
+        class(JsonValue), pointer, private :: value => null()
     contains
         ! TODO: add a isValid method to replace the fail out argument
 
         ! Retrieve the root node of the document that enable then further get/set.
-        procedure :: getRoot => JsonDocument_getRoot
+        procedure, public :: getRoot => JsonDocument_getRoot
 
         ! Serialize the whole json document into a string.
         ! Proxy to the JsonValue class. See it for more information.
-        procedure :: toString => JsonDocument_toString
+        procedure, public :: toString => JsonDocument_toString
 
         ! Clone the whole json document.
         ! Proxy to the JsonValue class. See it for more information.
-        procedure :: clone => JsonDocument_clone
+        procedure, public :: clone => JsonDocument_clone
 
         ! Save the whole document into a file.
         ! Proxy to the JsonValue class. See it for more information.
-        procedure :: saveTo => JsonDocument_saveTo
+        procedure, public :: saveTo => JsonDocument_saveTo
 
         ! Manual destruction: should not be called unless the destructor is not
         ! automatically called (which should not be the case, but in practice it is...).
         ! Note that this method deallocate its content but not itself, 
         ! which is needed if this is an allocated pointer.
-        procedure :: destroy => JsonDocument_destroy
+        procedure, public :: destroy => JsonDocument_destroy
 
         ! Clean all child nodes when destroyed
         final :: JsonDocument_destructor
@@ -105,21 +105,21 @@ module netorcai_json
 
         ! Serialize the value into a string (with its children).
         ! Return an allocated string that should be deallocated by the user.
-        procedure(JsonValue_toString), deferred :: toString
+        procedure(JsonValue_toString), deferred, public :: toString
 
         ! Clone the value (and its children).
         ! Useful for creating a new json document since no value should be used 
         ! in multiple other value (due to automatic recursive deletion).
-        procedure(JsonValue_clone), deferred :: clone
+        procedure(JsonValue_clone), deferred, public :: clone
 
         ! Save the value into a file (with its children).
         ! If fail is not set, the function crashes on error.
-        procedure :: saveTo => JsonValue_saveTo
+        procedure, public :: saveTo => JsonValue_saveTo
 
         ! Deallocate all children and internal structures.
         ! Note that this method deallocate its content but not itself, 
         ! which is needed if this is an allocated pointer.
-        procedure :: destroy => JsonValue_destroy
+        procedure, public :: destroy => JsonValue_destroy
     end type JsonValue
 
     ! For deferred procedures
@@ -139,69 +139,71 @@ module netorcai_json
 
     type, extends(JsonValue), public :: JsonNull
     contains
-        procedure :: toString => JsonNull_toString
-        procedure :: clone => JsonNull_clone
+        procedure, public :: toString => JsonNull_toString
+        procedure, public :: clone => JsonNull_clone
     end type JsonNull
 
     type, extends(JsonValue), public :: JsonBool
-        logical :: value
+        logical, private :: value
     contains
-        procedure :: toString => JsonBool_toString
-        procedure :: clone => JsonBool_clone
+        procedure, public :: toString => JsonBool_toString
+        procedure, public :: clone => JsonBool_clone
     end type JsonBool
 
     type, extends(JsonValue), public :: JsonInteger
-        integer(8) :: value
+        integer(8), private :: value
     contains
-        procedure :: toString => JsonInteger_toString
-        procedure :: clone => JsonInteger_clone
+        procedure, public :: toString => JsonInteger_toString
+        procedure, public :: clone => JsonInteger_clone
     end type JsonInteger
 
     type, extends(JsonValue), public :: JsonNumber
-        real(8) :: value
+        real(8), private :: value
     contains
-        procedure :: toString => JsonNumber_toString
-        procedure :: clone => JsonNumber_clone
+        procedure, public :: toString => JsonNumber_toString
+        procedure, public :: clone => JsonNumber_clone
     end type JsonNumber
 
     type, extends(JsonValue), public :: JsonString
-        character(:), pointer :: value
+        character(:), pointer, private :: value
     contains
-        procedure :: toString => JsonString_toString
-        procedure :: clone => JsonString_clone
-        procedure :: destroy => JsonString_destroy
+        procedure, public :: toString => JsonString_toString
+        procedure, public :: clone => JsonString_clone
+        procedure, public :: destroy => JsonString_destroy
     end type JsonString
 
     ! Funny note: you cannot declare array of pointer in FORTRAN so you need this...
     type, public :: JsonItem
-        class(JsonValue), pointer :: value => null()
+        class(JsonValue), pointer, public :: value => null()
     end type JsonItem
 
     type, extends(JsonValue), public :: JsonArray
-        type(Vector) :: value
+        type(Vector), private :: value
     contains
-        procedure :: toString => JsonArray_toString
-        procedure :: clone => JsonArray_clone
-        procedure :: destroy => JsonArray_destroy
-        procedure :: add => JsonArray_add
-        procedure :: getItem => JsonArray_getItem
+        procedure, public :: toString => JsonArray_toString
+        procedure, public :: clone => JsonArray_clone
+        procedure, public :: destroy => JsonArray_destroy
+        procedure, public :: add => JsonArray_add
+        procedure, public :: getItem => JsonArray_getItem
         procedure, private :: setItem => JsonArray_setItem
+        procedure, public :: size => JsonArray_size
     end type JsonArray
 
     type, public :: JsonPair
-        character(:), pointer :: name => null()
-        class(JsonValue), pointer :: value => null()
+        character(:), pointer, public :: name => null()
+        class(JsonValue), pointer, public :: value => null()
     end type JsonPair
 
     type, extends(JsonValue), public :: JsonObject
-        type(Vector) :: value
+        type(Vector), private :: value
     contains
-        procedure :: toString => JsonObject_toString
-        procedure :: clone => JsonObject_clone
-        procedure :: destroy => JsonObject_destroy
-        procedure :: add => JsonObject_add
-        procedure :: getItem => JsonObject_getItem
+        procedure, public :: toString => JsonObject_toString
+        procedure, public :: clone => JsonObject_clone
+        procedure, public :: destroy => JsonObject_destroy
+        procedure, public :: add => JsonObject_add
+        procedure, public :: getItem => JsonObject_getItem
         procedure, private :: setItem => JsonObject_setItem
+        procedure, public :: size => JsonObject_size
     end type JsonObject
 contains
     function json_load(filename, fail) result(res)
@@ -1238,6 +1240,13 @@ contains
         call this%value%set(index, transfer(value, void))
     end subroutine JsonArray_setItem
 
+    function JsonArray_size(this) result(res)
+        class(JsonArray), intent(in) :: this
+        integer :: res
+
+        res = this%value%size()
+    end function JsonArray_size
+
     recursive subroutine JsonArray_destroy(this)
         class(JsonArray), intent(inout) :: this
         type(JsonItem) :: item
@@ -1324,6 +1333,13 @@ contains
 
         call this%value%set(index, transfer(item, void))
     end subroutine JsonObject_setItem
+
+    function JsonObject_size(this) result(res)
+        class(JsonObject), intent(in) :: this
+        integer :: res
+
+        res = this%value%size()
+    end function JsonObject_size
 
     recursive subroutine JsonObject_destroy(this)
         class(JsonObject), intent(inout) :: this
