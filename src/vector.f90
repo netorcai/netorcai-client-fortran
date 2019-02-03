@@ -72,17 +72,26 @@ contains
         class(Vector), intent(inout) :: this
         character, dimension(:), intent(in) :: newItem
         type(Variant), dimension(:), pointer :: newData
+        type(Variant) :: newInternalItem
+        integer :: i
 
         if(this%mSize == this%mCapacity) then
             this%mCapacity = this%mCapacity * 2
             allocate(newData(this%mCapacity))
-            newData(1:this%mSize) = this%mRawData(1:this%mSize)
+            do i = 1, this%mSize
+                call move_alloc(this%mRawData(i)%value, newData(i)%value)
+            end do
             deallocate(this%mRawData)
             this%mRawData => newData
         end if
 
         this%mSize = this%mSize + 1
-        this%mRawData(this%mSize) = Variant(newItem)
+        if(allocated(this%mRawData(this%mSize)%value)) then
+            ! Should never be possible...
+            deallocate(this%mRawData(this%mSize)%value)
+        end if
+        newInternalItem%value = newItem
+        call move_alloc(newInternalItem%value, this%mRawData(this%mSize)%value)
     end subroutine vector_add
 
     function vector_get(this, index) result(res)
@@ -110,6 +119,11 @@ contains
             stop 1
         end if
 
+        ! Not very efficient: a copy can be done if the array is
+        ! already allocated en the data size matches.
+        if(allocated(this%mRawData(index)%value)) then
+            deallocate(this%mRawData(index)%value)
+        end if
         this%mRawData(index) = Variant(item)
     end subroutine vector_set
 
@@ -122,6 +136,13 @@ contains
 
     subroutine vector_destroy(this)
         class(Vector), intent(inout) :: this
+        integer :: i
+
+        do i = 1, this%mSize
+            if(allocated(this%mRawData(i)%value)) then
+                deallocate(this%mRawData(i)%value)
+            end if
+        end do
 
         deallocate(this%mRawData)
         nullify(this%mRawData) ! For the automatic destructor
