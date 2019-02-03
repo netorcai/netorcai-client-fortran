@@ -394,7 +394,7 @@ contains
                         res = res // '?'
                     end if
 
-                    offset = offset + 3 ! incremented later
+                    offset = offset + 4
                 else
                     fail = .true.
                     offset = offset - 1 ! for the error recovery
