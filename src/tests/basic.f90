@@ -53,7 +53,7 @@ contains
         type(GameStartsMessage) :: gameStarts
         type(DoTurnMessage) :: doTurn
         type(GameEndsMessage) :: gameEnds
-        type(fson_value), pointer :: jsonValue
+        class(JsonDocument), allocatable :: jsonDoc
         integer :: i, j
 
         ! Run netorcai
@@ -75,37 +75,37 @@ contains
         call netorcaiProcess%writeLine("start")
 
         doInit = gameLogic%readDoInit()
-        jsonValue => fson_parse(str='{"all_clients": {"gl": "D"}}')
-        call gameLogic%sendDoInitAck(jsonValue)
-        call fson_destroy(jsonValue)
+        jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+        call gameLogic%sendDoInitAck(jsonDoc%getRoot())
+        deallocate(jsonDoc)
         gameStarts = player%readGameStarts()
-        call fson_destroy(gameStarts%initialGameState) ! Free struct internal json data
+        call gameStarts%initialGameState%destroy() ! Free struct internal json data
 
         do i = 1, doInit%nbTurnsMax-1
             doTurn = gameLogic%readDoTurn()
             do j = 1, size(doTurn%playerActions)
-                call fson_destroy(doTurn%playerActions(j)%actions) ! Free struct internal json data
+                call doTurn%playerActions(j)%actions%destroy() ! Free struct internal json data
             end do
 
-            jsonValue => fson_parse(str='{"all_clients": {"gl": "D"}}')
-            call gameLogic%sendDoTurnAck(jsonValue, -1)
-            call fson_destroy(jsonValue)
+            jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+            call gameLogic%sendDoTurnAck(jsonDoc%getRoot(), -1)
+            deallocate(jsonDoc)
 
             if(.not. player%readTurn(turn)) exit ! Break the game loop if needed
-            call fson_destroy(turn%gameState) ! Free struct internal json data
+            call turn%gameState%destroy() ! Free struct internal json data
 
-            jsonValue => fson_parse(str='[{"player": "D"}]')
-            call player%sendTurnAck(turn%turnNumber, jsonValue)
-            call fson_destroy(jsonValue)
+            jsonDoc = json_parse('[{"player": "D"}]')
+            call player%sendTurnAck(turn%turnNumber, jsonDoc%getRoot())
+            deallocate(jsonDoc)
         end do
 
         doTurn = gameLogic%readDoTurn()
-        jsonValue => fson_parse(str='{"all_clients": {"gl": "D"}}')
-        call gameLogic%sendDoTurnAck(jsonValue, -1)
-        call fson_destroy(jsonValue)
+        jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+        call gameLogic%sendDoTurnAck(jsonDoc%getRoot(), -1)
+        deallocate(jsonDoc)
 
         gameEnds = player%readGameEnds()
-        call fson_destroy(gameEnds%gameState) ! Free struct internal json data
+        call gameEnds%gameState%destroy() ! Free struct internal json data
 
         call gameLogic%close()
         call player%close()

@@ -83,41 +83,36 @@ contains
     end function client_recvString
 
     ! Reads a JSON message on the client socket. Crash on error.
-    function client_recvJson(this) result(jsonValue)
+    function client_recvJson(this) result(jsonDoc)
         class(Client), intent(inout) :: this
-        character(len=:), allocatable :: jsonStr
-        type(fson_value), pointer :: jsonValue
+        type(JsonDocument), allocatable :: jsonDoc
 
-        jsonStr = this%recvString()
-        jsonValue => fson_parse(str=jsonStr)
-        deallocate(jsonStr)
+        jsonDoc = json_parse(this%recvString())
     end function client_recvJson
 
     subroutine client_checkMessageType(jsonMsg, targetMessageTypes)
-        type(fson_value), pointer :: jsonMsg
-        type(String), dimension(:) :: targetMessageTypes
-        character(len=256) :: messageType
-        character(len=256) :: kickReason
+        class(JsonValue), intent(in) :: jsonMsg
+        type(String), dimension(:), intent(in) :: targetMessageTypes
+        character(:), allocatable :: messageType
+        character(:), allocatable :: kickReason
         integer :: i
         logical :: found
 
-        call fson_get(jsonMsg, "message_type", messageType)
+        call jsonMsg%lookup("message_type", messageType)
 
-        if(trim(messageType) == "KICK") then
-            call fson_get(jsonMsg, "kick_reason", kickReason)
-            print *, "Kicked from netorai. Reason: ", trim(kickReason)
+        if(messageType == "KICK") then
+            call jsonMsg%lookup("kick_reason", kickReason)
+            print *, "Kicked from netorai. Reason: ", kickReason
             stop 1
         else
             found = .false.
 
             do i = 1, size(targetMessageTypes)
-                if(trim(messageType) == targetMessageTypes(i)%str) then
-                    found = .true.
-                end if
+                found = found .or. messageType == targetMessageTypes(i)%str
             end do
 
             if(.not. found) then
-                print *, "Unexpected message received: ", trim(messageType)
+                print *, "Unexpected message received: ", messageType
                 stop 1
             endif
         end if
@@ -127,83 +122,78 @@ contains
     function client_readLoginAck(this) result(res)
         class(Client), intent(inout) :: this
         type(LoginAckMessage) :: res
-        type(fson_value), pointer :: jsonMsg
+        class(JsonDocument), allocatable :: jsonMsg
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("LOGIN_ACK")/))
+        jsonMsg = this%recvJson()
+        call client_checkMessageType(jsonMsg%getRoot(), [String("LOGIN_ACK")])
         res = LoginAckMessage()
-        call fson_destroy(jsonMsg)
     end function client_readLoginAck
 
     ! Reads a GAME_STARTS message on the client socket. Crash on error.
     function client_readGameStarts(this) result(res)
         class(Client), intent(inout) :: this
         type(GameStartsMessage) :: res
-        type(fson_value), pointer :: jsonMsg
+        class(JsonDocument), allocatable :: jsonMsg
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("GAME_STARTS")/))
-        res = message_parseGameStarts(jsonMsg)
-        call fson_destroy(jsonMsg)
+        jsonMsg = this%recvJson()
+        call client_checkMessageType(jsonMsg%getRoot(), [String("GAME_STARTS")])
+        res = message_parseGameStarts(jsonMsg%getRoot())
     end function client_readGameStarts
 
     ! Reads a TURN message on the client socket. Crash on error.
     ! Return true if the game continue and false else.
-    ! Also return 
+    ! Also return if the game should be continued (or game-over otherwise)
     function client_readTurn(this, turn) result(continueGame)
         class(Client), intent(inout) :: this
         type(TurnMessage), intent(out) :: turn
         logical :: continueGame
-        type(fson_value), pointer :: jsonMsg
-        character(len=256) :: messageType
+        class(JsonDocument), allocatable :: jsonMsg
+        class(JsonValue), pointer :: jsonRoot
+        character(:), allocatable :: messageType
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("TURN"), String("GAME_ENDS")/))
-        call fson_get(jsonMsg, "message_type", messageType)
+        jsonMsg = this%recvJson()
+        jsonRoot => jsonMsg%getRoot()
+        call client_checkMessageType(jsonRoot, [String("TURN"), String("GAME_ENDS")])
+        call jsonRoot%lookup("message_type", messageType)
 
-        continueGame = trim(messageType) == "TURN"
+        continueGame = messageType == "TURN"
 
         if(continueGame) then
-            turn = message_parseTurn(jsonMsg)
+            turn = message_parseTurn(jsonRoot)
         end if
-
-        call fson_destroy(jsonMsg)
     end function client_readTurn
 
     ! Reads a GAME_ENDS message on the client socket. Crash on error.
     function client_readGameEnds(this) result(res)
         class(Client), intent(inout) :: this
         type(GameEndsMessage) :: res
-        type(fson_value), pointer :: jsonMsg
+        type(JsonDocument), allocatable :: jsonMsg
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("GAME_ENDS")/))
-        res = message_parseGameEnds(jsonMsg)
-        call fson_destroy(jsonMsg)
+        jsonMsg = this%recvJson()
+        call client_checkMessageType(jsonMsg%getRoot(), [String("GAME_ENDS")])
+        res = message_parseGameEnds(jsonMsg%getRoot())
     end function client_readGameEnds
 
     ! Reads a DO_INIT message on the client socket. Crash on error.
     function client_readDoInit(this) result(res)
         class(Client), intent(inout) :: this
         type(DoInitMessage) :: res
-        type(fson_value), pointer :: jsonMsg
+        class(JsonDocument), allocatable :: jsonMsg
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("DO_INIT")/))
-        res = message_parseDoInit(jsonMsg)
-        call fson_destroy(jsonMsg)
+        jsonMsg = this%recvJson()
+        call client_checkMessageType(jsonMsg%getRoot(), [String("DO_INIT")])
+        res = message_parseDoInit(jsonMsg%getRoot())
     end function client_readDoInit
 
     ! Reads a DO_TURN message on the client socket. Crash on error.
     function client_readDoTurn(this) result(res)
         class(Client), intent(inout) :: this
         type(DoTurnMessage) :: res
-        type(fson_value), pointer :: jsonMsg
+        class(JsonDocument), allocatable :: jsonMsg
 
-        jsonMsg => this%recvJson()
-        call client_checkMessageType(jsonMsg, (/String("DO_TURN")/))
-        res = message_parseDoTurn(jsonMsg)
-        call fson_destroy(jsonMsg)
+        jsonMsg = this%recvJson()
+        call client_checkMessageType(jsonMsg%getRoot(), [String("DO_TURN")])
+        res = message_parseDoTurn(jsonMsg%getRoot())
     end function client_readDoTurn
 
     ! Send a string message on the client socket. Crash on error.
@@ -232,12 +222,11 @@ contains
     ! Send a JSON message on the client socket. Crash on error.
     subroutine client_sendJson(this, message)
         class(Client), intent(inout) :: this
+        class(JsonValue), intent(in) :: message
         character(len=:), allocatable :: jsonStr
-        type(fson_value), pointer :: message
 
-        jsonStr = fson_value_toString(message)
+        jsonStr = message%toString()
         call this%sendString(jsonStr)
-        deallocate(jsonStr)
     end subroutine client_sendJson
 
     ! Send a LOGIN message on the client socket. Crash on error.
@@ -245,61 +234,61 @@ contains
         class(Client), intent(inout) :: this
         character(len=*), intent(in) :: nickname
         character(len=*), intent(in) :: role
-        type(fson_value), pointer :: msg
+        class(JsonObject), pointer :: msg
 
-        msg => fson_value_create_struct()
-        call fson_value_add_pair(msg, "message_type", fson_value_create_string("LOGIN"))
-        call fson_value_add_pair(msg, "nickname", fson_value_create_string(nickname))
-        call fson_value_add_pair(msg, "role", fson_value_create_string(role))
+        msg => json_makeObject()
+        call msg%add("message_type", json_makeString("LOGIN"))
+        call msg%add("nickname", json_makeString(nickname))
+        call msg%add("role", json_makeString(role))
 
         call this%sendJson(msg)
-        call fson_destroy(msg)
+        call msg%destroy()
     end subroutine client_sendLogin
 
     ! Send a TURN_ACK message on the client socket. Crash on error.
     subroutine client_sendTurnAck(this, turnNumber, actions)
         class(Client), intent(inout) :: this
         integer, intent(in) :: turnNumber
-        type(fson_value), pointer, intent(in) :: actions
-        type(fson_value), pointer :: msg
+        class(JsonValue), intent(in) :: actions
+        class(JsonObject), pointer :: msg
 
-        msg => fson_value_create_struct()
-        call fson_value_add_pair(msg, "message_type", fson_value_create_string("TURN_ACK"))
-        call fson_value_add_pair(msg, "turn_number", fson_value_create_int(turnNumber))
-        call fson_value_add_pair(msg, "actions", fson_value_copy(actions))
+        msg => json_makeObject()
+        call msg%add("message_type", json_makeString("TURN_ACK"))
+        call msg%add("turn_number", json_makeInt(turnNumber))
+        call msg%add("actions", actions%clone())
 
         call this%sendJson(msg)
-        call fson_destroy(msg)
+        call msg%destroy()
     end subroutine client_sendTurnAck
 
     ! Send a DO_INIT_ACK message on the client socket. Crash on error.
     subroutine client_sendDoInitAck(this, initialGameState)
         class(Client), intent(inout) :: this
-        type(fson_value), pointer, intent(in) :: initialGameState
-        type(fson_value), pointer :: msg
+        class(JsonValue), intent(in) :: initialGameState
+        class(JsonObject), pointer :: msg
 
-        msg => fson_value_create_struct()
-        call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_INIT_ACK"))
-        call fson_value_add_pair(msg, "initial_game_state", fson_value_copy(initialGameState))
+        msg => json_makeObject()
+        call msg%add("message_type", json_makeString("DO_INIT_ACK"))
+        call msg%add("initial_game_state", initialGameState%clone())
 
         call this%sendJson(msg)
-        call fson_destroy(msg)
+        call msg%destroy()
     end subroutine client_sendDoInitAck
 
     ! Send a DO_TURN_ACK message on the client socket. Crash on error.
     subroutine client_sendDoTurnAck(this, gameState, winnerPlayerID)
         class(Client), intent(inout) :: this
-        type(fson_value), pointer, intent(in) :: gameState
+        class(JsonValue), intent(in) :: gameState
         integer, intent(in) :: winnerPlayerID
-        type(fson_value), pointer :: msg
+        class(JsonObject), pointer :: msg
 
-        msg => fson_value_create_struct()
-        call fson_value_add_pair(msg, "message_type", fson_value_create_string("DO_TURN_ACK"))
-        call fson_value_add_pair(msg, "winner_player_id", fson_value_create_int(winnerPlayerID))
-        call fson_value_add_pair(msg, "game_state", fson_value_copy(gameState))
+        msg => json_makeObject()
+        call msg%add("message_type", json_makeString("DO_TURN_ACK"))
+        call msg%add("winner_player_id", json_makeInt(winnerPlayerID))
+        call msg%add("game_state", gameState%clone())
 
         call this%sendJson(msg)
-        call fson_destroy(msg)
+        call msg%destroy()
     end subroutine client_sendDoTurnAck
 end module netorcai_client
 
