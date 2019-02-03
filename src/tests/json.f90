@@ -234,7 +234,11 @@ contains
         call arr(1)%value%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, 0)
-        call arr(size(arr))%value%get(i, fail)
+        call arr(2)%value%get(i, fail)
+        call test%assert(.not. fail)
+        call test%assert(i, 1)
+        root => arr(size(arr))%value
+        call root%get(i, fail)
         call test%assert(.not. fail)
         call test%assert(i, elemCount)
         deallocate(arr)
