@@ -94,6 +94,7 @@ module netorcai_json
                                         JsonValue_lookupDouble, JsonValue_lookupString, &
                                         JsonValue_lookupArray, JsonValue_lookupObject
 
+        procedure, public :: lookupValue => JsonValue_lookupValue ! Polymorphic case
         procedure, private :: JsonValue_lookupBool
         procedure, private :: JsonValue_lookupInt
         procedure, private :: JsonValue_lookupLong
@@ -806,13 +807,18 @@ contains
         class(JsonValue), intent(in) :: this
         real(4), intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonNumber), pointer :: concreteThis
+        class(JsonNumber), pointer :: concreteNumber
+        class(JsonInteger), pointer :: concreteInteger
 
         select type(this)
             type is (JsonNumber)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                value = real(concreteThis%value, kind=4)
+                concreteNumber => this
+                value = real(concreteNumber%value, kind=4)
+            type is (JsonInteger)
+                if(present(fail)) fail = .false.
+                concreteInteger => this
+                value = real(concreteInteger%value, kind=4)
             class default
                 call json_type_mismatch(this, "real(4)", fail)
         end select
@@ -822,13 +828,18 @@ contains
         class(JsonValue), intent(in) :: this
         real(8), intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonNumber), pointer :: concreteThis
+        class(JsonNumber), pointer :: concreteNumber
+        class(JsonInteger), pointer :: concreteInteger
 
         select type(this)
             type is (JsonNumber)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                value = real(concreteThis%value, kind=8)
+                concreteNumber => this
+                value = real(concreteNumber%value, kind=8)
+            type is (JsonInteger)
+                if(present(fail)) fail = .false.
+                concreteInteger => this
+                value = real(concreteInteger%value, kind=8)
             class default
                 call json_type_mismatch(this, "real(8)", fail)
         end select
@@ -914,6 +925,24 @@ contains
             end if
         end if
     end subroutine json_check_pos_found
+
+    subroutine JsonValue_lookupValue(this, key, value, fail)
+        class(JsonValue), target, intent(in) :: this
+        character(*), intent(in) :: key
+        class(JsonValue), pointer, intent(out) :: value
+        logical, optional, intent(out) :: fail
+        class(JsonObject), pointer :: concreteThis
+        type(JsonPair) :: item
+        integer :: pos
+
+        call json_type_ensureObject(this, concreteThis, fail)
+        if(present(fail) .and. fail) return
+        pos = json_find_index(concreteThis, key)
+        call json_check_pos_found(pos, key, fail)
+        if(present(fail) .and. fail) return
+        item = concreteThis%getItem(pos)
+        value => item%value
+    end subroutine JsonValue_lookupValue
 
     subroutine JsonValue_lookupBool(this, key, value, fail)
         class(JsonValue), target, intent(in) :: this
