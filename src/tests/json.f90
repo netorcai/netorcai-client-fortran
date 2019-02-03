@@ -294,6 +294,7 @@ contains
         call root%get(i, fail)
         call test%assert(i, 1)
         root => arr(size(arr))%value
+        deallocate(obj)
         call root%get(obj, fail)
         call test%assert(.not. fail)
         call test%assert(size(obj), 2)
@@ -301,6 +302,7 @@ contains
         root => obj(2)%value
         call root%get(i, fail)
         call test%assert(i, 2)
+        deallocate(obj)
         deallocate(arr)
         deallocate(doc)
 
