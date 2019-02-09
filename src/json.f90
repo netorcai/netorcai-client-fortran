@@ -1171,11 +1171,43 @@ contains
         res => localRes
     end function JsonNumber_clone
 
+    function escapeString(inStr) result(res)
+        character(*), intent(in) :: inStr
+        character(:), allocatable :: res
+        integer :: i, c
+        logical :: escape
+
+        escape = .false.
+
+        do i = 1, len(inStr)
+            c = ichar(inStr(i:i))
+
+            if(c == 8 .or. c == 9 .or. c == 10 .or. c == 13 &
+                    .or. c == ichar('/') .or. c == ichar('\') &
+                    .or. c == ichar('"')) then
+                escape = .true.
+            end if
+        end do
+
+        res = inStr
+
+        if(escape) then
+            ! Not efficient but simple
+            res = utils_strReplace(res, '\', '\\')
+            res = utils_strReplace(res, '"', '\"')
+            res = utils_strReplace(res, '/', '\/')
+            res = utils_strReplace(res, achar(8), '\b')
+            res = utils_strReplace(res, achar(9), '\t')
+            res = utils_strReplace(res, achar(10), '\n')
+            res = utils_strReplace(res, achar(13), '\r')
+        end if
+    end function escapeString
+
     recursive function JsonString_toString(this) result(res)
         class(JsonString), intent(in) :: this
         character(:), allocatable :: res
 
-        res = '"' // utils_strReplace(this%value, '"', '\"') // '"'
+        res = '"' // escapeString(this%value) // '"'
     end function JsonString_toString
 
     recursive function JsonString_clone(this) result(res)
@@ -1295,7 +1327,7 @@ contains
             end if
 
             item = this%getItem(i)
-            serializedName = '"' // utils_strReplace(item%name, '"', '\"') // '"'
+            serializedName = '"' // escapeString(item%name) // '"'
             res = res // serializedName // ':' // item%value%toString()
         end do
 
