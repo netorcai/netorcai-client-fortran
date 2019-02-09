@@ -318,7 +318,7 @@ contains
         call test%assert(.not. fail)
         deallocate(doc)
 
-        doc = json_parse('{}', fail)
+        doc = json_parse('{ }', fail)
         call test%assert(.not. fail)
         deallocate(doc)
 
@@ -326,7 +326,7 @@ contains
         call test%assert(.not. fail)
         deallocate(doc)
 
-        doc = json_parse('[]', fail)
+        doc = json_parse('[ ]', fail)
         call test%assert(.not. fail)
         deallocate(doc)
 
@@ -762,6 +762,98 @@ contains
         ! But, still, the behavior must be contrôled.
         ! This include \uXXXX with 0xXXXX >= 128 or any direct utf-8 string.
     end subroutine test_string_unicode
+
+    subroutine test_lookup(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonDocument), allocatable :: doc
+        class(JsonValue), pointer :: root
+        logical :: valBool
+        integer :: valInt
+        real :: valFloat
+        character(:), allocatable :: valStr
+        type(JsonArray), pointer :: valArr
+        type(JsonObject), pointer :: valObj
+        type(JsonItem) :: valItem
+        logical :: fail
+
+        doc = json_parse('&
+                            & { &
+                            &   "v1": null, &
+                            &   "v2": true, &
+                            &   "v3": false, &
+                            &   "v4": 42, &
+                            &   "v5": 3.141592, &
+                            &   "v6": "test", &
+                            &   "v7": [4, 8, 15, 16, 23, 42], &
+                            &   "v8": {"a": null, "subvalue": "OK", "b": null}, &
+                            &   "v9": {"conflict": 815, "conflict": 7418880} &
+                            & } &
+                            &', fail)
+        call test%assert(.not. fail)
+        root => doc%getRoot()
+
+        ! It should not be possible to read null (no implicit type conversion)
+        call root%lookup("v1", valBool, fail)
+        call test%assert(fail)
+        call root%lookup("v1", valInt, fail)
+        call test%assert(fail)
+        call root%lookup("v1", valFloat, fail)
+        call test%assert(fail)
+        call root%lookup("v1", valArr, fail)
+        call test%assert(fail)
+        call root%lookup("v1", valObj, fail)
+        call test%assert(fail)
+
+        call root%lookup("v2", valBool, fail)
+        call test%assert(.not. fail)
+        call test%assert(valBool, .true.)
+        call root%lookup("v3", valBool, fail)
+        call test%assert(.not. fail)
+        call test%assert(valBool, .false.)
+
+        call root%lookup("v4", valInt, fail)
+        call test%assert(.not. fail)
+        call test%assert(valInt, 42)
+        call root%lookup("v4", valFloat, fail) ! type conversion should be possible
+        call test%assert(.not. fail)
+        call test%assert(int(valFloat * 10000.0 + 0.5), 420000)
+
+        call root%lookup("v5", valFloat, fail)
+        call test%assert(.not. fail)
+        call test%assert(int(valFloat * 10000.0 + 0.01), 31415)
+        call root%lookup("v5", valInt, fail) ! type conversion should be possible
+        call test%assert(.not. fail)
+        call test%assert(valInt, 3)
+
+        call root%lookup("v6", valStr, fail)
+        call test%assert(.not. fail)
+        call test%assert(valStr, "test")
+
+        call root%lookup("v7", valArr, fail)
+        call test%assert(.not. fail)
+        call test%assert(valArr%size(), 6)
+        valItem = valArr%getItem(5)
+        call valItem%value%get(valInt)
+        call test%assert(valInt, 23)
+
+        call root%lookup("v8", valObj, fail)
+        call test%assert(.not. fail)
+        call test%assert(valObj%size(), 3)
+        call valObj%lookup("subvalue", valStr, fail)
+        call test%assert(valStr, "OK")
+
+        ! Should just not crash
+        call root%lookup("v9", valObj, fail)
+
+        ! If it accepted, the value must be correct
+        if(.not. fail) then
+            call valObj%lookup("conflict", valInt, fail)
+            call test%assert(.not. fail)
+            call test%assert(valInt == 815 .or. valInt == 7418880)
+        end if
+
+        deallocate(doc)
+    end subroutine test_lookup
 
     subroutine test_perf_arrays(test)
         class(unit_test_type), intent(inout) :: test
