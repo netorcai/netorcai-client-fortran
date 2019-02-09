@@ -276,7 +276,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, 'A')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"A"' .or. trim(adjustl(outJsonStr)) == '"\u0041"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"A"' .or. outJsonStr == '"\u0041"')
         deallocate(doc)
 
         doc = json_parse('"\u0020"', fail)
@@ -286,7 +287,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, ' ')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '" "' .or. trim(adjustl(outJsonStr)) == '"\u0020"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '" "' .or. outJsonStr == '"\u0020"')
         deallocate(doc)
 
         doc = json_parse('"\u0000"', fail)
@@ -435,7 +437,19 @@ contains
         call test%assert(.not. fail)
         deallocate(doc)
 
-        doc = json_parse('3.141592')
+        doc = json_parse('3.141592', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('314.1592e-2', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('314.1592e-02', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('3141592e-6', fail)
         call test%assert(.not. fail)
         deallocate(doc)
 
@@ -480,6 +494,14 @@ contains
         deallocate(doc)
 
         doc = json_parse('[1, 2]', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('{"v1": [], "v2": null, "v3": true, "v4": {}, "v5": "", "v6": 1}', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('[[1], null, true, 42, 3.14, {"val": false}, "ok"]', fail)
         call test%assert(.not. fail)
         deallocate(doc)
 
