@@ -250,11 +250,10 @@ contains
     end subroutine json_skipSpaces
 
     ! Internal function
-    ! Note: allow integers that begin with 0
-    function json_parseInteger(jsonStr, offset, withPlus, fail) result(res)
+    function json_parseInteger(jsonStr, offset, isExponent, fail) result(res)
         character(*), intent(in) :: jsonStr
         integer, intent(inout) :: offset
-        logical, intent(in) :: withPlus
+        logical, intent(in) :: isExponent
         logical, intent(out) :: fail
         integer(8) :: res, sign
         integer :: tmp
@@ -272,7 +271,7 @@ contains
         if(jsonStr(offset:offset) == '-') then
             sign = -1
             offset = offset + 1
-        elseif(withPlus .and. jsonStr(offset:offset) == '+') then
+        elseif(isExponent .and. jsonStr(offset:offset) == '+') then
             offset = offset + 1
         end if
 
@@ -288,6 +287,16 @@ contains
         if(tmp < ichar('0') .or. tmp > ichar('9')) then
             fail = .true.
             return
+        end if
+
+        if(.not. isExponent .and. tmp == ichar('0') .and. offset+1 <= len(jsonStr)) then
+            tmp = ichar(jsonStr(offset+1:offset+1))
+
+            ! The next character is a digit
+            if(tmp >= ichar('0') .and. tmp <= ichar('9')) then
+                fail = .true.
+                return
+            end if
         end if
 
         do while(offset <= len(jsonStr))
@@ -520,7 +529,6 @@ contains
                 res => resObject
 
             case("-", "0": "9")
-                ! TODO fix: allow numbers >= 10 starting with 0 (should not be)
                 tmpInt = json_parseInteger(jsonStr, offset, .false., fail)
                 if(fail) return
                 if(json_expect(jsonStr, '.', offset)) then
@@ -536,6 +544,13 @@ contains
                         if(fail) return
                         tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     end if
+                    res => json_makeDouble(tmpReal)
+                elseif(json_expect(jsonStr, 'E', offset) &
+                            & .or. json_expect(jsonStr, 'e', offset)) then
+                    tmpReal = tmpInt
+                    tmpInt = json_parseInteger(jsonStr, offset, .true., fail)
+                    if(fail) return
+                    tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     res => json_makeDouble(tmpReal)
                 else
                     res => json_makeLong(tmpInt)
