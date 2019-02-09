@@ -794,13 +794,18 @@ contains
         class(JsonValue), intent(in) :: this
         integer(4), intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonInteger), pointer :: concreteThis
+        class(JsonNumber), pointer :: concreteNumber
+        class(JsonInteger), pointer :: concreteInteger
 
         select type(this)
             type is (JsonInteger)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                value = int(concreteThis%value, kind=4)
+                concreteInteger => this
+                value = int(concreteInteger%value, kind=4)
+            type is (JsonNumber)
+                if(present(fail)) fail = .false.
+                concreteNumber => this
+                value = int(concreteNumber%value, kind=4)
             class default
                 call json_type_mismatch(this, "integer(4)", fail)
         end select
@@ -810,13 +815,18 @@ contains
         class(JsonValue), intent(in) :: this
         integer(8), intent(out) :: value
         logical, optional, intent(out) :: fail
-        class(JsonInteger), pointer :: concreteThis
+        class(JsonNumber), pointer :: concreteNumber
+        class(JsonInteger), pointer :: concreteInteger
 
         select type(this)
             type is (JsonInteger)
                 if(present(fail)) fail = .false.
-                concreteThis => this
-                value = int(concreteThis%value, kind=8)
+                concreteInteger => this
+                value = int(concreteInteger%value, kind=8)
+            type is (JsonNumber)
+                if(present(fail)) fail = .false.
+                concreteNumber => this
+                value = int(concreteNumber%value, kind=8)
             class default
                 call json_type_mismatch(this, "integer(8)", fail)
         end select
