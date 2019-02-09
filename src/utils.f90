@@ -40,7 +40,7 @@ contains
 
     ! Return true if str starts with prefix, false otherwise.
     ! If strOffset is set, compare str(strOffset:) with prefix.
-    ! Assumption: 1 <= strOffset <= len(str).
+    ! Assumption: 1 <= strOffset.
     function utils_startsWith(str, prefix, strOffset) result(res)
         character(*), intent(in) :: str
         character(*), intent(in) :: prefix
@@ -54,7 +54,7 @@ contains
             offset = 0
         end if
 
-        res = str(offset:offset+len(prefix)-1) == prefix
+        res = str(offset:min(offset+len(prefix)-1,len(str))) == prefix
     end function utils_startsWith
 
     ! ! Safe substring function with clamped bounds.

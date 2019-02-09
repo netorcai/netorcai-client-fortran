@@ -112,6 +112,205 @@ contains
         call jsonVal%destroy()
     end subroutine test_tostring
 
+    subroutine test_parse(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonDocument), allocatable :: doc
+        logical :: fail
+
+        doc = json_parse('42', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('-42', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('0', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('-0', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('3.141592', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('3.141592e+00', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('314.1592e-2', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('314.1592e-02', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('0.03141592E+02', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('3141592e-6', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('-3.141592e-0', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('""', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('"\""', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('"test"', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('null', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('true', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('false', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('{}', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('{"value": 42}', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('[]', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('[1]', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('[1, 2]', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('{"v1": [], "v2": null, "v3": true, "v4": {}, "v5": "", "v6": 1}', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('[[1], null, true, 42, 3.14, {"val": false}, "ok"]', fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        doc = json_parse('', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('0x42', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('01', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('-01', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('.1', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('+', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('-', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('--1', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"\"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('[', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('{', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('nul', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('t', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('true false', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('{true: false}', fail)
+        call test%assert(fail)
+        deallocate(doc)
+    end subroutine test_parse
+
+!    subroutine test_parse_overflow(test)
+!        class(unit_test_type), intent(inout) :: test
+!        type(JsonDocument), allocatable :: doc
+!        logical :: fail
+!
+!        ! Overflow, but should work (seen as a number)!
+!        doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
+!        call test%assert(.not. fail)
+!        deallocate(doc)
+!
+!        ! Overflow, but should work and be ~1.2346
+!        doc = json_parse('12345678901234567890123456789012345678901234567890e-49', fail)
+!        call test%assert(.not. fail)
+!        deallocate(doc)
+!
+!        ! Overflow, but should work and be +inf
+!        doc = json_parse('1e10000000000000000000000000000000000000000000000000', fail)
+!        call test%assert(.not. fail)
+!        deallocate(doc)
+!
+!        ! Overflow, but should work and be -inf
+!        doc = json_parse('-1e10000000000000000000000000000000000000000000000000', fail)
+!        call test%assert(.not. fail)
+!        deallocate(doc)
+!
+!        ! Overflow, but should work and be ~0.0
+!        doc = json_parse('1e-10000000000000000000000000000000000000000000000000', fail)
+!        call test%assert(.not. fail)
+!        deallocate(doc)
+!    end subroutine test_parse_overflow
+
+    ! TODO: test get & lookup
+
     subroutine test_string_invalid(test)
         class(unit_test_type), intent(inout) :: test
         type(JsonDocument), allocatable :: doc
@@ -415,110 +614,6 @@ contains
         ! But, still, the behavior must be contrôled.
         ! This include \uXXXX with 0xXXXX >= 128 or any direct utf-8 string.
     end subroutine test_string_unicode
-
-    subroutine test_parse(test)
-        class(unit_test_type), intent(inout) :: test
-        type(JsonDocument), allocatable :: doc
-        logical :: fail
-
-        doc = json_parse('42', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('-42', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('0', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('-0', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('3.141592', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('314.1592e-2', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('314.1592e-02', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('3141592e-6', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('""', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('"\""', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('"test"', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('null', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('true', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('false', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('{}', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('{"value": 42}', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('[]', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('[1]', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('[1, 2]', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('{"v1": [], "v2": null, "v3": true, "v4": {}, "v5": "", "v6": 1}', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('[[1], null, true, 42, 3.14, {"val": false}, "ok"]', fail)
-        call test%assert(.not. fail)
-        deallocate(doc)
-
-        doc = json_parse('0x42', fail)
-        call test%assert(fail)
-        deallocate(doc)
-
-        doc = json_parse('01', fail)
-        call test%assert(fail)
-        deallocate(doc)
-
-        doc = json_parse('-01', fail)
-        call test%assert(fail)
-        deallocate(doc)
-    end subroutine test_parse
-
-    ! TODO: test get & lookup
 
     subroutine test_perf_arrays(test)
         class(unit_test_type), intent(inout) :: test

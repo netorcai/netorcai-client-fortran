@@ -397,7 +397,7 @@ contains
                     ! Since unicode is not supported by FORTRAN, 
                     ! we just put a '?' character in the string for 
                     ! non-ASCII unicode characters
-                    if(unicodeChar >= 0 .and. unicodeChar <= 128) then
+                    if(unicodeChar >= 0 .and. unicodeChar <= 127) then
                         res = res // achar(unicodeChar)
                     else
                         res = res // '?'
