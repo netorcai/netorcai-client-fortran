@@ -112,6 +112,40 @@ contains
         call jsonVal%destroy()
     end subroutine test_tostring
 
+    subroutine test_string_invalid(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonDocument), allocatable :: doc
+        class(Jsonvalue), pointer :: jsonValue
+        character(len=:), allocatable :: inJsonStr, outJsonStr
+        logical :: fail
+
+        ! Control character are forbidden in JSON
+
+        doc = json_parse('"' // achar(0) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"' // achar(8) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"' // achar(9) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"' // achar(10) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"' // achar(13) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('"' // achar(27) // '"', fail)
+        call test%assert(fail)
+        deallocate(doc)
+    end subroutine test_string_invalid
+
     subroutine test_string_escape(test)
         class(unit_test_type), intent(inout) :: test
         type(JsonDocument), allocatable :: doc
@@ -342,14 +376,16 @@ contains
         call test%assert(outJsonStr == '"\""' .or. outJsonStr == '"\u0022"')
         deallocate(doc)
 
-        doc = json_parse('"\u001B"', fail)
+        ! This is the only ASCII character not printable but apparently accepted...
+        doc = json_parse('"\u007F"', fail)
         call test%assert(.not. fail)
         jsonValue => doc%getRoot()
         call jsonValue%get(outJsonStr, fail)
         call test%assert(.not. fail)
-        call test%assert(outJsonStr, achar(27))
+        call test%assert(outJsonStr, achar(127))
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\u001B"')
+        ! The ascii form would be possible but not a good idea here
+        call test%assert(trim(adjustl(outJsonStr)) == '"\u007F"')
         deallocate(doc)
 
         inJsonStr = ' { "\u0020in\u0020": "\u0020out\u0020" } '
