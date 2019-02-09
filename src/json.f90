@@ -539,14 +539,14 @@ contains
                         tmpReal = tmpReal - json_parseMantissa(jsonStr, offset)
                     end if
                     if(json_expect(jsonStr, 'E', offset) &
-                            & .or. json_expect(jsonStr, 'e', offset)) then
+                            .or. json_expect(jsonStr, 'e', offset)) then
                         tmpInt = json_parseInteger(jsonStr, offset, .true., fail)
                         if(fail) return
                         tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     end if
                     res => json_makeDouble(tmpReal)
                 elseif(json_expect(jsonStr, 'E', offset) &
-                            & .or. json_expect(jsonStr, 'e', offset)) then
+                            .or. json_expect(jsonStr, 'e', offset)) then
                     tmpReal = tmpInt
                     tmpInt = json_parseInteger(jsonStr, offset, .true., fail)
                     if(fail) return
