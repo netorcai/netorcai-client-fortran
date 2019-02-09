@@ -195,7 +195,7 @@ contains
         jsonValue => doc%getRoot()
         call jsonValue%get(outJsonStr, fail)
         call test%assert(.not. fail)
-        call test%assert(outJsonStr, '"')
+        call test%assert(outJsonStr, '/')
         outJsonStr = doc%toString()
         call test%assert(trim(adjustl(outJsonStr)), '"\/"')
         deallocate(doc)
