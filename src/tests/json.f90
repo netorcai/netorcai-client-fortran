@@ -409,6 +409,22 @@ contains
         doc = json_parse('{true: false}', fail)
         call test%assert(fail)
         deallocate(doc)
+
+        doc = json_parse('[1 2]', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('[[]', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('[]]', fail)
+        call test%assert(fail)
+        deallocate(doc)
+
+        doc = json_parse('{"v1": 1 "v2": 2}', fail)
+        call test%assert(fail)
+        deallocate(doc)
     end subroutine test_parse
 
 !    subroutine test_parse_overflow(test)
@@ -448,7 +464,6 @@ contains
         class(unit_test_type), intent(inout) :: test
         type(JsonDocument), allocatable :: doc
         class(Jsonvalue), pointer :: jsonValue
-        character(len=:), allocatable :: inJsonStr, outJsonStr
         logical :: fail
 
         ! Control character are forbidden in JSON
@@ -868,5 +883,39 @@ contains
             deallocate(doc)
         end do
     end subroutine test_perf_objects
+
+    subroutine test_readWrite(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonDocument), allocatable :: doc
+        character(len=:), allocatable :: inJsonStr, outJsonStr, filename
+        real :: randVal
+        integer :: randInt
+        logical :: fail
+
+        inJsonStr = '{"v1": [], "v2": null, "v3": true, "v4": {}, "v5": "", "v6": 1}'
+        outJsonStr = utils_strReplace(inJsonStr, ' ', '')
+
+        ! Choose a random filename with 1 chance over 1 000 000 000 
+        ! to fail if the test is run in parallel...
+        call random_number(randVal)
+        randInt = floor(randVal * 1000000000)
+        filename = "/tmp/delete_me" // utils_intToHex(randInt)
+
+        ! Parse and write the json on a file
+        doc = json_parse(inJsonStr, fail)
+        call test%assert(.not. fail)
+        call doc%saveTo(filename, fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+
+        ! Read the written file, check it and remove it
+        doc = json_load(filename, fail)
+        call test%assert(.not. fail)
+        outJsonStr = doc%toString()
+        call test%assert(utils_strReplace(outJsonStr, ' ', ''), utils_strReplace(inJsonStr, ' ', ''))
+        call utils_removeFile(filename, fail)
+        call test%assert(.not. fail)
+        deallocate(doc)
+    end subroutine test_readWrite
 end module netorcai_test_json
 

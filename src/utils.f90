@@ -18,6 +18,7 @@ module netorcai_utils
     public :: utils_getFileUnit
     public :: utils_getFileContent
     public :: utils_setFileContent
+    public :: utils_removeFile
     public :: utils_readLine
 contains
     ! Seriously FORTRAN does not implement such a basic function...
@@ -276,19 +277,28 @@ contains
             open(unit=unit, file=filename, status="new")
         end if
 
-        do while(.true.)
+        if(present(fail)) then
             write(unit, "(a)", iostat=iostat) content
+            fail = iostat /= 0
+        else
+            write(unit, "(a)") content
+        end if
 
-            ! TODO
-            !if(present(fail)) then
-            !    fail = internalFail
-            !elseif(internalFail)
-            !    print *, "I/O error"
-            !end if
-        end do
-
-        call close(unit)
+        close(unit)
     end subroutine utils_setFileContent
+
+    ! Remove a filename
+    ! If fail is set to true if the file does not exists
+    subroutine utils_removeFile(filename, fail)
+        character(*), intent(in) :: filename
+        logical, optional, intent(out) :: fail
+        integer :: unit, iostat
+
+        unit = utils_getFileUnit()
+        open(unit=unit, iostat=iostat, file=filename, status='old')
+        if(present(fail)) fail = iostat /= 0
+        if(iostat == 0) close(unit, status='delete')
+    end subroutine utils_removeFile
 
     ! Read a line from a file
     ! If fail is not set, the function fail silently
