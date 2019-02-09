@@ -427,36 +427,39 @@ contains
         deallocate(doc)
     end subroutine test_parse
 
-!    subroutine test_parse_overflow(test)
-!        class(unit_test_type), intent(inout) :: test
-!        type(JsonDocument), allocatable :: doc
-!        logical :: fail
-!
-!        ! Overflow, but should work (seen as a number)!
-!        doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
-!        call test%assert(.not. fail)
-!        deallocate(doc)
-!
-!        ! Overflow, but should work and be ~1.2346
-!        doc = json_parse('12345678901234567890123456789012345678901234567890e-49', fail)
-!        call test%assert(.not. fail)
-!        deallocate(doc)
-!
-!        ! Overflow, but should work and be +inf
-!        doc = json_parse('1e10000000000000000000000000000000000000000000000000', fail)
-!        call test%assert(.not. fail)
-!        deallocate(doc)
-!
-!        ! Overflow, but should work and be -inf
-!        doc = json_parse('-1e10000000000000000000000000000000000000000000000000', fail)
-!        call test%assert(.not. fail)
-!        deallocate(doc)
-!
-!        ! Overflow, but should work and be ~0.0
-!        doc = json_parse('1e-10000000000000000000000000000000000000000000000000', fail)
-!        call test%assert(.not. fail)
-!        deallocate(doc)
-!    end subroutine test_parse_overflow
+   subroutine test_parse_overflow(test)
+       class(unit_test_type), intent(inout) :: test
+       type(JsonDocument), allocatable :: doc
+       logical :: fail
+
+       ! Overflows cause fail to be set to true.
+       ! Thus, the value cannot be read, but not crash sould appear 
+
+       ! Overflow, but should work (seen as a number)!
+       doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
+       !call test%assert(.not. fail)
+       deallocate(doc)
+
+       ! Overflow, but should work and be ~1.2346
+       doc = json_parse('12345678901234567890123456789012345678901234567890e-49', fail)
+       !call test%assert(.not. fail)
+       deallocate(doc)
+
+       ! Overflow, but should work and be +inf
+       doc = json_parse('1e10000000000000000000000000000000000000000000000000', fail)
+       !call test%assert(.not. fail)
+       deallocate(doc)
+
+       ! Overflow, but should work and be -inf
+       doc = json_parse('-1e10000000000000000000000000000000000000000000000000', fail)
+       !call test%assert(.not. fail)
+       deallocate(doc)
+
+       ! Overflow, but should work and be ~0.0
+       doc = json_parse('1e-10000000000000000000000000000000000000000000000000', fail)
+       !call test%assert(.not. fail)
+       deallocate(doc)
+   end subroutine test_parse_overflow
 
     ! TODO: test get & lookup
 
@@ -787,7 +790,7 @@ contains
                             &   "v5": 3.141592, &
                             &   "v6": "test", &
                             &   "v7": [4, 8, 15, 16, 23, 42], &
-                            &   "v8": {"a": null, "subvalue": "OK", "b": null}, &
+                            &   "v8": {"subValueA": null, "subValueB": "OK", "subValueC": 42}, &
                             &   "v9": {"conflict": 815, "conflict": 7418880} &
                             & } &
                             &', fail)
@@ -805,6 +808,8 @@ contains
         call test%assert(fail)
         call root%lookup("v1", valDouble, fail)
         call test%assert(fail)
+        !call root%lookup("v1", valStr, fail)
+        !call test%assert(fail)
         call root%lookup("v1", valArr, fail)
         call test%assert(fail)
         call root%lookup("v1", valObj, fail)
@@ -857,8 +862,13 @@ contains
         call root%lookup("v8", valObj, fail)
         call test%assert(.not. fail)
         call test%assert(valObj%size(), 3)
-        call valObj%lookup("subvalue", valStr, fail)
+        call valObj%lookup("subValueA", valStr, fail)
+        call test%assert(fail) ! associated to null
+        call valObj%lookup("subValueB", valStr, fail)
+        call test%assert(.not. fail)
         call test%assert(valStr, "OK")
+        call valObj%lookup("subvaluec", valStr, fail)
+        call test%assert(fail) ! case sensitive
 
         ! Should just not crash
         call root%lookup("v9", valObj, fail)
