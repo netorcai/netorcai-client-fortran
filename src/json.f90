@@ -397,7 +397,7 @@ contains
                     offset = offset + 4
                 else
                     fail = .true.
-                    offset = offset - 1 ! for the error recovery
+                    offset = offset - 2 ! for the error recovery
                     return
                 end if
             else
@@ -405,8 +405,12 @@ contains
                     return
                 elseif(c == '\') then
                     escape = .true.
-                else
+                elseif(ichar(c) >= 32 .and. ichar(c) < 128) then
                     res = res // c
+                else
+                    fail = .true.
+                    offset = offset - 1 ! for the error recovery
+                    return
                 end if
             end if
         end do
@@ -1175,9 +1179,11 @@ contains
         character(*), intent(in) :: inStr
         character(:), allocatable :: res
         integer :: i, c
-        logical :: escape
+        character(len=4) :: tmpHex
+        logical :: basicEscape, codeEscape
 
-        escape = .false.
+        basicEscape = .false.
+        codeEscape = .false.
 
         do i = 1, len(inStr)
             c = ichar(inStr(i:i))
@@ -1185,21 +1191,38 @@ contains
             if(c == 8 .or. c == 9 .or. c == 10 .or. c == 13 &
                     .or. c == ichar('/') .or. c == ichar('\') &
                     .or. c == ichar('"')) then
-                escape = .true.
+                basicEscape = .true.
+            elseif(c < 32 .or. c == 127 .or. c >= 128) then
+                codeEscape = .true.
             end if
         end do
 
         res = inStr
 
-        if(escape) then
-            ! Not efficient but simple
+        if(basicEscape) then
+            ! Not efficient but unlikely to be executed and simple
             res = utils_strReplace(res, '\', '\\')
             res = utils_strReplace(res, '"', '\"')
-            res = utils_strReplace(res, '/', '\/')
+            !res = utils_strReplace(res, '/', '\/')
             res = utils_strReplace(res, achar(8), '\b')
             res = utils_strReplace(res, achar(9), '\t')
             res = utils_strReplace(res, achar(10), '\n')
             res = utils_strReplace(res, achar(13), '\r')
+        end if
+
+        if(codeEscape) then
+            ! Horribly inefficient but very unlikely to be executed and simple
+            do i = 0, 31
+                ! Something as simple as converting an int to a \uXXXX
+                ! is not simple in FORTRAN...
+                tmpHex = "    "
+                tmpHex = utils_intToHex(i)
+                tmpHex = adjustr(tmpHex)
+                tmpHex = utils_strReplace(tmpHex, ' ', '0')
+                res = utils_strReplace(res, achar(i), "\u" // tmpHex)
+            end do
+
+            res = utils_strReplace(res, achar(127), "\u007F")
         end if
     end function escapeString
 

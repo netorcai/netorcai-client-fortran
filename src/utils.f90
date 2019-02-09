@@ -9,6 +9,7 @@ module netorcai_utils
     public :: utils_toLower
     public :: utils_strReplace
     public :: utils_hexToInt
+    public :: utils_intToHex
     public :: utils_startsWith
     public :: utils_intToStr
     public :: utils_longToStr
@@ -101,7 +102,7 @@ contains
         character(*), intent(in) :: str
         logical, optional, intent(out) :: fail
         integer :: i, tmp
-        integer :: res
+        integer(4) :: res
 
         res = 0
 
@@ -132,6 +133,37 @@ contains
             end if
         end do
     end function utils_hexToInt
+
+    ! Convert an integer to a non-prefixed hexadecimal string
+    ! The input value must not be negative
+    function utils_intToHex(intVal) result(res)
+        integer(4), intent(in) :: intVal
+        character(:), allocatable :: res
+        integer :: i, tmpInt
+        integer(4) :: val
+        character :: tmpChar
+
+        res = ""
+        val = intVal
+
+        do while(val /= 0 .or. len(res) == 0)
+            tmpInt = and(val, 15)
+            val = ishft(val, -4)
+
+            if(tmpInt < 10) then
+                res = res // achar(tmpInt + iachar('0'))
+            else
+                res = res // achar(tmpInt - 10 + iachar('A'))
+            end if
+        end do
+
+        ! Reverse the string
+        do i = 1, len(res)/2
+            tmpChar = res(i:i)
+            res(i:i) = res(len(res)+1-i:len(res)+1-i)
+            res(len(res)+1-i:len(res)+1-i) = tmpChar
+        end do
+    end function utils_intToHex
 
     ! Convert a standard integer to a string
     ! Return tha allocated string
