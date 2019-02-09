@@ -768,8 +768,10 @@ contains
         type(JsonDocument), allocatable :: doc
         class(JsonValue), pointer :: root
         logical :: valBool
-        integer :: valInt
-        real :: valFloat
+        integer(4) :: valInt
+        integer(8) :: valLong
+        real(4) :: valFloat
+        real(8) :: valDouble
         character(:), allocatable :: valStr
         type(JsonArray), pointer :: valArr
         type(JsonObject), pointer :: valObj
@@ -797,7 +799,11 @@ contains
         call test%assert(fail)
         call root%lookup("v1", valInt, fail)
         call test%assert(fail)
+        call root%lookup("v1", valLong, fail)
+        call test%assert(fail)
         call root%lookup("v1", valFloat, fail)
+        call test%assert(fail)
+        call root%lookup("v1", valDouble, fail)
         call test%assert(fail)
         call root%lookup("v1", valArr, fail)
         call test%assert(fail)
@@ -813,17 +819,29 @@ contains
 
         call root%lookup("v4", valInt, fail)
         call test%assert(.not. fail)
-        call test%assert(valInt, 42)
+        call test%assert(valInt, 42_4)
+        call root%lookup("v4", valLong, fail)
+        call test%assert(.not. fail)
+        call test%assert(valLong, 42_8)
         call root%lookup("v4", valFloat, fail) ! type conversion should be possible
         call test%assert(.not. fail)
         call test%assert(int(valFloat * 10000.0 + 0.5), 420000)
+        call root%lookup("v4", valDouble, fail) ! type conversion should be possible
+        call test%assert(.not. fail)
+        call test%assert(int(valDouble * 1000000.0 + 0.5), 42000000)
 
         call root%lookup("v5", valFloat, fail)
         call test%assert(.not. fail)
         call test%assert(int(valFloat * 10000.0 + 0.01), 31415)
+        call root%lookup("v5", valDouble, fail)
+        call test%assert(.not. fail)
+        call test%assert(int(valDouble * 1000000.0 + 0.01), 3141592)
         call root%lookup("v5", valInt, fail) ! type conversion should be possible
         call test%assert(.not. fail)
-        call test%assert(valInt, 3)
+        call test%assert(valInt, 3_4)
+        call root%lookup("v5", valLong, fail) ! type conversion should be possible
+        call test%assert(.not. fail)
+        call test%assert(valLong, 3_8)
 
         call root%lookup("v6", valStr, fail)
         call test%assert(.not. fail)
@@ -834,7 +852,7 @@ contains
         call test%assert(valArr%size(), 6)
         valItem = valArr%getItem(5)
         call valItem%value%get(valInt)
-        call test%assert(valInt, 23)
+        call test%assert(valInt, 23_4)
 
         call root%lookup("v8", valObj, fail)
         call test%assert(.not. fail)
@@ -849,7 +867,7 @@ contains
         if(.not. fail) then
             call valObj%lookup("conflict", valInt, fail)
             call test%assert(.not. fail)
-            call test%assert(valInt == 815 .or. valInt == 7418880)
+            call test%assert(valInt == 815_4 .or. valInt == 7418880_4)
         end if
 
         deallocate(doc)
