@@ -112,6 +112,139 @@ contains
         call jsonVal%destroy()
     end subroutine test_tostring
 
+    subroutine test_clone(test)
+        class(unit_test_type), intent(inout) :: test
+        class(JsonValue), pointer :: jsonVal
+        class(JsonValue), pointer :: jsonCopy
+        class(JsonArray), pointer :: jsonArr
+        class(JsonObject), pointer :: jsonObj
+        character(len=:), allocatable :: jsonStr
+
+        ! Null
+        jsonVal => json_makeNull()
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(utils_toLower(jsonCopy%toString()), "null")
+        call jsonCopy%destroy()
+
+        ! Logical (true)
+        jsonVal => json_makeBool(.true.)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(utils_toLower(jsonCopy%toString()), "true")
+        call jsonCopy%destroy()
+
+        ! Logical (false)
+        jsonVal => json_makeBool(.false.)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(utils_toLower(jsonCopy%toString()), "false")
+        call jsonCopy%destroy()
+
+        ! Positive integers (int)
+        jsonVal => json_makeInt(42_4)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(jsonCopy%toString(), "42")
+        call jsonCopy%destroy()
+
+        ! Positive integers (long)
+        jsonVal => json_makeLong(420000000000_8)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(jsonCopy%toString(), "420000000000")
+        call jsonCopy%destroy()
+
+        ! Negative integers (int)
+        jsonVal => json_makeInt(-42_4)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(jsonCopy%toString(), "-42")
+        call jsonCopy%destroy()
+
+        ! Negative integers (long)
+        jsonVal => json_makeLong(-420000000000_8)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(jsonCopy%toString(), "-420000000000")
+        call jsonCopy%destroy()
+
+        ! Positive reals (float)
+        jsonVal => json_makeFloat(3.1415926535_4)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = jsonCopy%toString()
+        call test%assert(jsonStr(1:6), "3.1415")
+        call jsonCopy%destroy()
+
+        ! Negative reals (float)
+        jsonVal => json_makeFloat(-3.1415926535_4)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = jsonCopy%toString()
+        call test%assert(jsonStr(1:7), "-3.1415")
+        call jsonCopy%destroy()
+
+        ! Positive reals (double)
+        jsonVal => json_makeDouble(3.1415926535_8)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = jsonCopy%toString()
+        call test%assert(jsonStr(1:12), "3.1415926535")
+        call jsonCopy%destroy()
+
+        ! Negative reals (double)
+        jsonVal => json_makeDouble(-3.1415926535_8)
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = jsonCopy%toString()
+        call test%assert(jsonStr(1:13), "-3.1415926535")
+        call jsonCopy%destroy()
+
+        ! Strings
+        jsonVal => json_makeString('test')
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        call test%assert(jsonCopy%toString(), '"test"')
+        call jsonCopy%destroy()
+
+        ! Empty arrays
+        jsonVal => json_makeArray()
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = utils_strReplace(jsonCopy%toString(), " ", "")
+        call test%assert(jsonStr, '[]')
+        call jsonCopy%destroy()
+
+        ! Arrays
+        jsonArr => json_makeArray()
+        call jsonArr%add(json_makeInt(42_4))
+        call jsonArr%add(json_makeInt(0_4))
+        jsonCopy => jsonArr%clone()
+        call jsonArr%destroy()
+        jsonStr = utils_strReplace(jsonCopy%toString(), " ", "")
+        call test%assert(jsonStr, '[42,0]')
+        call jsonCopy%destroy()
+
+        ! Empty objects
+        jsonVal => json_makeObject()
+        jsonCopy => jsonVal%clone()
+        call jsonVal%destroy()
+        jsonStr = utils_strReplace(jsonCopy%toString(), " ", "")
+        call test%assert(jsonStr, '{}')
+        call jsonCopy%destroy()
+
+        ! Objects
+        jsonObj => json_makeObject()
+        call jsonObj%add("bouh", json_makeInt(42_4))
+        call jsonObj%add("bwa", json_makeInt(0_4))
+        jsonCopy => jsonObj%clone()
+        call jsonObj%destroy()
+        jsonStr = utils_strReplace(jsonCopy%toString(), " ", "")
+        call test%assert(jsonStr, '{"bouh":42,"bwa":0}')
+        call jsonCopy%destroy()
+    end subroutine test_clone
+
     subroutine test_parse(test)
         class(unit_test_type), intent(inout) :: test
         type(JsonDocument), allocatable :: doc
