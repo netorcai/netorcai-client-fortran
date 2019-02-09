@@ -197,7 +197,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, '/')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)), '"\/"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\/"' .or. outJsonStr == '"/"')
         deallocate(doc)
 
         doc = json_parse('" "', fail)
@@ -271,7 +272,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, achar(10))
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\n"' .or. trim(adjustl(outJsonStr)) == '"\u000A"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\n"' .or. outJsonStr == '"\u000A"')
         deallocate(doc)
 
         doc = json_parse('"\u000D"', fail)
@@ -281,7 +283,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, achar(13))
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\r"' .or. trim(adjustl(outJsonStr)) == '"\u000D"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\r"' .or. outJsonStr == '"\u000D"')
         deallocate(doc)
 
         doc = json_parse('"\u0008"', fail)
@@ -291,7 +294,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, achar(8))
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\b"' .or. trim(adjustl(outJsonStr)) == '"\u0008"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\b"' .or. outJsonStr == '"\u0008"')
         deallocate(doc)
 
         doc = json_parse('"\u0009"', fail)
@@ -301,7 +305,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, achar(9))
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\t"' .or. trim(adjustl(outJsonStr)) == '"\u0009"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\t"' .or. outJsonStr == '"\u0009"')
         deallocate(doc)
 
         doc = json_parse('"\u005C"', fail)
@@ -311,7 +316,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, '\')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\\"' .or. trim(adjustl(outJsonStr)) == '"\u005C"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\\"' .or. outJsonStr == '"\u005C"')
         deallocate(doc)
 
         doc = json_parse('"\u002F"', fail)
@@ -321,7 +327,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, '/')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"/"' .or. trim(adjustl(outJsonStr)) == '"\u002F"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"/"' .or. outJsonStr == '"\/"' .or. outJsonStr == '"\u002F"')
         deallocate(doc)
 
         doc = json_parse('"\u0022"', fail)
@@ -331,7 +338,8 @@ contains
         call test%assert(.not. fail)
         call test%assert(outJsonStr, '"')
         outJsonStr = doc%toString()
-        call test%assert(trim(adjustl(outJsonStr)) == '"\""' .or. trim(adjustl(outJsonStr)) == '"\u0022"')
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"\""' .or. outJsonStr == '"\u0022"')
         deallocate(doc)
 
         doc = json_parse('"\u001B"', fail)
