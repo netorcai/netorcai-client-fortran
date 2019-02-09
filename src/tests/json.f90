@@ -433,7 +433,7 @@ contains
        logical :: fail
 
        ! Overflows cause fail to be set to true.
-       ! Thus, the value cannot be read, but not crash sould appear 
+       ! Thus, the value cannot be read, but still, tests should not crash 
 
        ! Overflow, but should work (seen as a number)!
        doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
