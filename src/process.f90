@@ -36,7 +36,6 @@ contains
         integer(c_int), dimension(1:2), target :: inPipe
         integer(c_int), dimension(1:2), target :: outPipe
         integer(c_int) :: pid, useless
-        integer(c_long) :: nullLong
 
         ! Explanation here:
         ! https://stackoverflow.com/questions/6171552/popen-simultaneous-read-and-write
@@ -53,18 +52,14 @@ contains
             useless = stdc_dup2(outPipe(2), STDERR_FILENO)
 
             ! Ask kernel to deliver SIGTERM in case the parent dies
-            ! Seriously FORTRAN?! It cannot cast an int to a long...
-            nullLong = int(0, kind=c_long)
-            useless = stdc_prctl(PR_SET_PDEATHSIG, int(SIGTERM, kind=c_long), nullLong, nullLong, nullLong)
+            ! Seriously FORTRAN?! It cannot cast an int to a long implicitly...
+            useless = stdc_prctl(PR_SET_PDEATHSIG, int(SIGTERM, kind=c_long), 0_8, 0_8, 0_8)
 
             ! Assume bash is installed and is in /bin/bash
             path = C_CHAR_"/bin/bash" // c_null_char
             argv1 = C_CHAR_"-c" // c_null_char
             argv2 = command // c_null_char
-            argv(1) = c_loc(path)
-            argv(2) = c_loc(argv1)
-            argv(3) = c_loc(argv2)
-            argv(4) = c_null_ptr
+            argv = [c_loc(path), c_loc(argv1), c_loc(argv2), c_null_ptr]
 
             ! Execute the shell command
             useless = stdc_execv(c_loc(path), c_loc(argv))
