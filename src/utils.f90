@@ -63,7 +63,7 @@ contains
         character(*), intent(in) :: str
         character(*), intent(in) :: prefix
         integer, optional, intent(in) :: strOffset
-        integer :: offset, tmp
+        integer :: offset
         logical :: res
 
         if(present(strOffset)) then
@@ -135,8 +135,8 @@ contains
         do i = 1, len(str)
             tmp = ichar(str(i:i))
 
-            ! If overflow (allow signed overflow)
-            if(res >= ishft(1, 28) .and. present(fail)) then
+            ! If overflow (prevent also signed overflow)
+            if(res >= ishft(1, 27) .and. present(fail)) then
                 fail = .true.
                 return
             end if

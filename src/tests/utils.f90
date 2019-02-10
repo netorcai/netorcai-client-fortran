@@ -60,22 +60,85 @@ contains
 
     subroutine test_hexToInt(test)
         class(unit_test_type), intent(inout) :: test
+        integer :: value
+        logical :: fail
 
-        call test%assert(utils_hexToInt('0'), 0_4)
-        call test%assert(utils_hexToInt('9'), 9_4)
-        call test%assert(utils_hexToInt('A'), 10_4)
-        call test%assert(utils_hexToInt('F'), 15_4)
-        call test%assert(utils_hexToInt('1A'), 26_4)
-        call test%assert(utils_hexToInt('9F'), 159_4)
-        call test%assert(utils_hexToInt('A0'), 160_4)
-        call test%assert(utils_hexToInt('FF'), 255_4)
-        call test%assert(utils_hexToInt('100'), 256_4)
-        call test%assert(utils_hexToInt('FFFF'), 65535_4)
-        call test%assert(utils_hexToInt('10000'), 65536_4)
-        call test%assert(utils_hexToInt('B90C9A2'), 194038178_4)
-        call test%assert(utils_hexToInt('01234567'), 19088743_4)
-        call test%assert(utils_hexToInt('0x09AbCdEf'), 162254319_4)
-        call test%assert(utils_hexToInt('7FffffFF'), 2147483647_4)
+        value = utils_hexToInt('0', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 0_4)
+
+        value = utils_hexToInt('0000', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 0_4)
+
+        value = utils_hexToInt('9', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 9_4)
+
+        value = utils_hexToInt('A', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 10_4)
+
+        value = utils_hexToInt('F', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 15_4)
+
+        value = utils_hexToInt('1A', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 26_4)
+
+        value = utils_hexToInt('9F', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 159_4)
+
+        value = utils_hexToInt('A0', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 160_4)
+
+        value = utils_hexToInt('FF', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 255_4)
+
+        value = utils_hexToInt('100', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 256_4)
+
+        value = utils_hexToInt('FFFF', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 65535_4)
+
+        value = utils_hexToInt('10000', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 65536_4)
+
+        value = utils_hexToInt('B90C9A2', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 194038178_4)
+
+        value = utils_hexToInt('01234567', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 19088743_4)
+
+        value = utils_hexToInt('09AbCdEf', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 162254319_4)
+
+        value = utils_hexToInt('7FffffFF', fail)
+        call test%assert(.not. fail)
+        call test%assert(value, 2147483647_4)
+
+        value = utils_hexToInt('0xFF', fail)
+        call test%assert(fail)
+
+        value = utils_hexToInt('BADVALUE', fail)
+        call test%assert(fail)
+
+        value = utils_hexToInt(' BAD ', fail)
+        call test%assert(fail)
+
+        ! Overflow
+        value = utils_hexToInt('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', fail)
+        call test%assert(fail)
     end subroutine test_hexToInt
 
     subroutine test_intToHex(test)
@@ -159,6 +222,7 @@ contains
         character(:), allocatable :: filename, content, tmpStr
         real :: randVal
         integer :: randInt
+        integer :: i
         logical :: fail
 
         ! Should not crash
@@ -171,12 +235,27 @@ contains
         filename = "/tmp/delete_me_" // utils_intToHex(randInt)
 
         call utils_removeFile(filename)
+
+        ! Simple test with a multi-line content
         tmpStr = "This is a" // achar(10) // "multiline content"
         call utils_setFileContent(filename, tmpStr, fail)
         call test%assert(.not. fail)
         content = utils_getFileContent(filename, fail)
         call test%assert(.not. fail)
         call test%assert(content, tmpStr)
+        call utils_removeFile(filename, fail)
+        call test%assert(.not. fail)
+
+        ! Big file to test chunks (~ 70K per lines)
+        tmpStr = "0"
+        do i = 1, 9999
+            tmpStr = tmpStr // " - " // utils_intToStr(i)
+        end do
+        call utils_setFileContent(filename, tmpStr // achar(10) // tmpStr, fail)
+        call test%assert(.not. fail)
+        content = utils_getFileContent(filename, fail)
+        call test%assert(.not. fail)
+        call test%assert(content, tmpStr // achar(10) // tmpStr)
         call utils_removeFile(filename, fail)
         call test%assert(.not. fail)
 
