@@ -118,7 +118,9 @@ contains
         class(JsonValue), pointer :: jsonCopy
         class(JsonArray), pointer :: jsonArr
         class(JsonObject), pointer :: jsonObj
+        type(JsonDocument), allocatable :: doc, docCopy
         character(len=:), allocatable :: jsonStr
+        logical :: fail
 
         ! Null
         jsonVal => json_makeNull()
@@ -243,6 +245,15 @@ contains
         jsonStr = utils_strReplace(jsonCopy%toString(), " ", "")
         call test%assert(jsonStr, '{"bouh":42,"bwa":0}')
         call jsonCopy%destroy()
+
+        ! Document
+        doc = json_parse('[4, 8, 15, 16, 23, 42]', fail)
+        call test%assert(.not. fail)
+        docCopy = doc%clone()
+        deallocate(doc)
+        jsonVal => docCopy%getRoot()
+        call test%assert(utils_strReplace(jsonVal%toString(), ' ', ''), "[4,8,15,16,23,42]")
+        deallocate(docCopy)
     end subroutine test_clone
 
     subroutine test_parse(test)
@@ -427,39 +438,41 @@ contains
         deallocate(doc)
     end subroutine test_parse
 
-   subroutine test_parse_overflow(test)
-       class(unit_test_type), intent(inout) :: test
-       type(JsonDocument), allocatable :: doc
-       logical :: fail
+    subroutine test_parse_overflow(test)
+        class(unit_test_type), intent(inout) :: test
+        type(JsonDocument), allocatable :: doc
+        logical :: fail
 
-       ! Overflows cause fail to be set to true.
-       ! Thus, the value cannot be read, but still, tests should not crash 
+        ! Overflows cause fail to be set to true.
+        ! Thus, the value cannot be read, but still, tests should not crash 
 
-       ! Overflow, but should work (seen as a number)!
-       doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
-       !call test%assert(.not. fail)
-       deallocate(doc)
+        ! Overflow, but should work (seen as a number)!
+        doc = json_parse('12345678901234567890123456789012345678901234567890', fail)
+        !call test%assert(.not. fail)
+        deallocate(doc)
 
-       ! Overflow, but should work and be ~1.2346
-       doc = json_parse('12345678901234567890123456789012345678901234567890e-49', fail)
-       !call test%assert(.not. fail)
-       deallocate(doc)
+        ! Overflow, but should work and be ~1.2346
+        doc = json_parse('12345678901234567890123456789012345678901234567890e-49', fail)
+        !call test%assert(.not. fail)
+        deallocate(doc)
 
-       ! Overflow, but should work and be +inf
-       doc = json_parse('1e10000000000000000000000000000000000000000000000000', fail)
-       !call test%assert(.not. fail)
-       deallocate(doc)
+        ! Overflow, but should work and be +inf
+        doc = json_parse('1e10000000000000000000000000000000000000000000000000', fail)
+        !call test%assert(.not. fail)
+        deallocate(doc)
 
-       ! Overflow, but should work and be -inf
-       doc = json_parse('-1e10000000000000000000000000000000000000000000000000', fail)
-       !call test%assert(.not. fail)
-       deallocate(doc)
+        ! Overflow, but should work and be -inf
+        doc = json_parse('-1e10000000000000000000000000000000000000000000000000', fail)
+        !call test%assert(.not. fail)
+        deallocate(doc)
 
-       ! Overflow, but should work and be ~0.0
-       doc = json_parse('1e-10000000000000000000000000000000000000000000000000', fail)
-       !call test%assert(.not. fail)
-       deallocate(doc)
-   end subroutine test_parse_overflow
+        ! Overflow, but should work and be ~0.0
+        doc = json_parse('1e-10000000000000000000000000000000000000000000000000', fail)
+        !call test%assert(.not. fail)
+        deallocate(doc)
+
+        call test%assert(.true.)
+    end subroutine test_parse_overflow
 
     ! TODO: test get & lookup
 
@@ -738,6 +751,28 @@ contains
         outJsonStr = doc%toString()
         ! The ascii form would be possible but not a good idea here
         call test%assert(trim(adjustl(outJsonStr)) == '"\u007F"')
+        deallocate(doc)
+
+        ! Test unicode characters, for now they are converted to '?' characters
+        ! since UTF-8 is not fully supported in FORTRAN and may probably never be...
+        ! Note that native string characters can be coded on multiple bytes and
+        ! get/set using char/ichar but the coding is compiler dependent...
+        ! However gfortran have an experimental support of UCS strings.
+        ! Still ichar does not support unicode character directly in gfortran, 
+        ! ichar should have a parameter that specify the encoding,
+        ! so it is not usable in practice...
+        ! Moreover, note that in practice with gfortran len('常')=3, and printing
+        ! UCS string built with the char intrinsic actually fail in practice.
+        ! See https://groups.google.com/forum/#!topic/comp.lang.fortran/p0gNzPcRhOs
+        doc = json_parse('"\u5e38"', fail) ! 常
+        call test%assert(.not. fail)
+        jsonValue => doc%getRoot()
+        call jsonValue%get(outJsonStr, fail)
+        call test%assert(.not. fail)
+        call test%assert(outJsonStr == '常' .or. outJsonStr == '?')
+        outJsonStr = doc%toString()
+        outJsonStr = trim(adjustl(outJsonStr))
+        call test%assert(outJsonStr == '"常"' .or. outJsonStr == '"?"' .or. outJsonStr == '"\u5e38"')
         deallocate(doc)
 
         inJsonStr = ' { "\u0020in\u0020": "\u0020out\u0020" } '
@@ -1019,7 +1054,7 @@ contains
         ! to fail if the test is run in parallel...
         call random_number(randVal)
         randInt = floor(randVal * 1000000000)
-        filename = "/tmp/delete_me" // utils_intToHex(randInt)
+        filename = "/tmp/delete_me_" // utils_intToHex(randInt)
 
         ! Parse and write the json on a file
         doc = json_parse(inJsonStr, fail)

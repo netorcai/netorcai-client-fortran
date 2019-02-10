@@ -52,7 +52,7 @@ module netorcai_json
         ! Proxy to the JsonValue class. See it for more information.
         procedure, public :: toString => JsonDocument_toString
 
-        ! Clone the whole json document.
+        ! Clone the whole json document (and all its values recursively).
         ! Proxy to the JsonValue class. See it for more information.
         procedure, public :: clone => JsonDocument_clone
 
@@ -685,7 +685,7 @@ contains
         class(JsonDocument), intent(in) :: this
         type(JsonDocument), allocatable :: res
 
-        res = JsonDocument(this%value)
+        res = JsonDocument(this%value%clone())
     end function JsonDocument_clone
 
     subroutine JsonDocument_saveTo(this, filename, fail)
@@ -702,18 +702,14 @@ contains
         if(associated(this%value)) then
             call this%value%destroy()
             deallocate(this%value)
-            nullify(this%value) ! To disable the destructor
+            nullify(this%value) ! To disable the next call to the destructor
         end if
     end subroutine JsonDocument_destroy
 
     subroutine JsonDocument_destructor(this)
         type(JsonDocument), intent(inout) :: this
 
-        if(associated(this%value)) then
-            call this%value%destroy()
-            deallocate(this%value)
-            nullify(this%value) ! For debugging purpose
-        end if
+        call this%destroy()
     end subroutine JsonDocument_destructor
 
     ! Internal method use for error handling
