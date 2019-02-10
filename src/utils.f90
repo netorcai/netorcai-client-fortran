@@ -7,6 +7,7 @@ module netorcai_utils
     private
 
     public :: utils_toLower
+    public :: utils_toUpper
     public :: utils_strReplace
     public :: utils_hexToInt
     public :: utils_intToHex
@@ -33,11 +34,27 @@ contains
 
         do i = 1, len(str)
             c = ichar(outStr(i:i))
-            if(c >= ichar('A') .and. c < ichar('Z')) then
+            if(c >= ichar('A') .and. c <= ichar('Z')) then
                 outStr(i:i) = achar(c + 32)
             end if
         end do
     end function utils_toLower
+
+    ! Similar to utils_toLower, but for upper case
+    function utils_toUpper(str) result(outStr)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable :: outStr
+        integer :: i, c
+
+        outStr = str
+
+        do i = 1, len(str)
+            c = ichar(outStr(i:i))
+            if(c >= ichar('a') .and. c <= ichar('z')) then
+                outStr(i:i) = achar(c - 32)
+            end if
+        end do
+    end function utils_toUpper
 
     ! Return true if str starts with prefix, false otherwise.
     ! If strOffset is set, compare str(strOffset:) with prefix.
@@ -46,16 +63,20 @@ contains
         character(*), intent(in) :: str
         character(*), intent(in) :: prefix
         integer, optional, intent(in) :: strOffset
-        integer :: offset
+        integer :: offset, tmp
         logical :: res
 
         if(present(strOffset)) then
             offset = strOffset
         else
-            offset = 0
+            offset = 1
         end if
 
-        res = str(offset:min(offset+len(prefix)-1,len(str))) == prefix
+        if(len(str)-(offset-1) >= len(prefix)) then
+            res = str(offset:offset+len(prefix)-1) == prefix
+        else
+            res = .false.
+        end if
     end function utils_startsWith
 
     ! ! Safe substring function with clamped bounds.
@@ -250,10 +271,16 @@ contains
             open(unit=unit, file=filename, status="old")
         end if
 
-        do while(.not. end)
+        do
             call utils_readLine(unit, lineBuff, end)
 
-            fileContent = fileContent // lineBuff
+            if(end) exit
+
+            if(len(fileContent) > 0) then
+                fileContent = fileContent // achar(10) // lineBuff
+            else
+                fileContent = lineBuff
+            end if
         end do
 
         close(unit=unit)

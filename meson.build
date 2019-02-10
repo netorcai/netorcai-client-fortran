@@ -30,7 +30,7 @@ netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran)
 
     # For unit-testing
 
-testNames = ['json', 'basic']
+testNames = ['utils', 'json', 'basic']
 
 zofuDriver = find_program('zofu-driver', required: false)
 if not zofuDriver.found()
