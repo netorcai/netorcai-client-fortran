@@ -122,11 +122,11 @@ contains
 
             if(tmp >= ichar('0') .and. tmp <= ichar('9')) then
                 res = res * 16 + (tmp - ichar('0'))
-            elseif(tmp >= ichar('A') .and. tmp <= ichar('F')) then
+            else if(tmp >= ichar('A') .and. tmp <= ichar('F')) then
                 res = res * 16 + (tmp - ichar('A') + 10)
-            elseif(tmp >= ichar('a') .and. tmp <= ichar('f')) then
+            else if(tmp >= ichar('a') .and. tmp <= ichar('f')) then
                 res = res * 16 + (tmp - ichar('a') + 10)
-            elseif(present(fail)) then
+            else if(present(fail)) then
                 fail = .true.
                 return
             else

@@ -72,7 +72,7 @@ contains
             ! Should not be here
             print *, "Error: execl failure"
             stop 1
-        elseif(pid > 0) then
+        else if(pid > 0) then
             ! Parent process
             useless = stdc_close(inPipe(1))
             useless = stdc_close(outPipe(2))
@@ -103,7 +103,7 @@ contains
             if(read < 0) then
                 print *, 'Error: Broken pipe (during read)'
                 stop 1
-            elseif(read == 0 .or. buffer == achar(10)) then
+            else if(read == 0 .or. buffer == achar(10)) then
                 return
             else
                 line = line // buffer

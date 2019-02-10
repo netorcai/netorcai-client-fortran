@@ -271,7 +271,7 @@ contains
         if(jsonStr(offset:offset) == '-') then
             sign = -1
             offset = offset + 1
-        elseif(isExponent .and. jsonStr(offset:offset) == '+') then
+        else if(isExponent .and. jsonStr(offset:offset) == '+') then
             offset = offset + 1
         end if
 
@@ -376,16 +376,16 @@ contains
 
                 if(c == '"' .or. c == '\' .or. c == '/') then
                     res = res // c
-                elseif(c == 'b') then
+                else if(c == 'b') then
                     ! WTF, why anyone whould put this in a Json doc?
                     res = res // achar(8)
-                elseif(c == 'n') then
+                else if(c == 'n') then
                     res = res // achar(10)
-                elseif(c == 'r') then
+                else if(c == 'r') then
                     res = res // achar(13)
-                elseif(c == 't') then
+                else if(c == 't') then
                     res = res // achar(9)
-                elseif(c == 'u') then
+                else if(c == 'u') then
                     if(offset+3 > len(jsonStr)) then
                         fail = .true.
                         return
@@ -412,9 +412,9 @@ contains
             else
                 if(c == '"') then
                     return
-                elseif(c == '\') then
+                else if(c == '\') then
                     escape = .true.
-                elseif(ichar(c) >= 32 .and. ichar(c) < 128) then
+                else if(ichar(c) >= 32 .and. ichar(c) < 128) then
                     res = res // c
                 else
                     fail = .true.
@@ -489,7 +489,7 @@ contains
 
                         if(json_expect(jsonStr, ',', offset)) then
                             cycle
-                        elseif(json_expect(jsonStr, ']', offset)) then
+                        else if(json_expect(jsonStr, ']', offset)) then
                             exit
                         else
                             fail = .true.
@@ -518,7 +518,7 @@ contains
 
                         if(json_expect(jsonStr, ',', offset)) then
                             cycle
-                        elseif(json_expect(jsonStr, '}', offset)) then
+                        else if(json_expect(jsonStr, '}', offset)) then
                             exit
                         else
                             fail = .true.
@@ -545,7 +545,7 @@ contains
                         tmpReal = tmpReal * (10.0_8 ** tmpInt)
                     end if
                     res => json_makeDouble(tmpReal)
-                elseif(json_expect(jsonStr, 'E', offset) &
+                else if(json_expect(jsonStr, 'E', offset) &
                             .or. json_expect(jsonStr, 'e', offset)) then
                     tmpReal = tmpInt
                     tmpInt = json_parseInteger(jsonStr, offset, .true., fail)
@@ -584,7 +584,7 @@ contains
 
         if(present(fail)) then
             fail = internalFail
-        elseif(internalFail) then
+        else if(internalFail) then
             print *, "Parse error"
             stop 1
         end if
@@ -1213,7 +1213,7 @@ contains
                     .or. c == ichar('/') .or. c == ichar('\') &
                     .or. c == ichar('"')) then
                 basicEscape = .true.
-            elseif(c < 32 .or. c == 127 .or. c >= 128) then
+            else if(c < 32 .or. c == 127 .or. c >= 128) then
                 codeEscape = .true.
             end if
         end do
