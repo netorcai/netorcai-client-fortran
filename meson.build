@@ -29,7 +29,13 @@ netorcai_fortran = shared_library('netorcai_fortran', sources, fortran_args: fAr
 netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran)
 
 
-    # For unit-testing
+    # For the installation
+
+pkg = import('pkgconfig')
+pkg.generate(netorcai_fortran, description: 'Object-oriented FORTRAN client implementation of Netorcai')
+
+
+    # For the unit-tests
 
 testNames = ['utils', 'json', 'basic']
 
