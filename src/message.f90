@@ -1,5 +1,6 @@
 module netorcai_message
     use netorcai_json
+    use netorcai_proto_version
 
     implicit none
     private
@@ -14,7 +15,7 @@ module netorcai_message
 
     ! Content of a LOGIN_ACK metaprotocol message
     type, public :: LoginAckMessage
-        ! ¯\_(ツ)_/¯
+        character(len=:), allocatable :: metaprotocolVersion ! netorcai's metaprotocol version
     end type LoginAckMessage
 
     ! Content of a GAME_STARTS metaprotocol message
@@ -59,12 +60,25 @@ module netorcai_message
         type(PlayerActions), dimension(:), allocatable :: playerActions ! The ordered list of player actions
     end type DoTurnMessage
 
+    public :: message_parseLoginAckMessage
     public :: message_parseGameStarts
     public :: message_parseGameEnds
     public :: message_parseTurn
     public :: message_parseDoInit
     public :: message_parseDoTurn
 contains
+    ! Parses a LOGIN_ACK metaprotocol message
+    function message_parseLoginAckMessage(jsonVal) result(res)
+        class(JsonValue), pointer, intent(in) :: jsonVal
+        type(LoginAckMessage) :: res
+
+        call jsonVal%lookup("metaprotocol_version", res%metaprotocolVersion)
+        if(res%metaprotocolVersion /= metaprotocolVersion) then
+            print *, "Warning: netorcai uses version '", res%metaprotocolVersion, &
+                        "' while netorcai-client-fortran uses '", metaprotocolVersion, "'"
+        end if
+    end function message_parseLoginAckMessage
+
     ! Parses a player information (in GAME_STARTS and GAME_ENDS messages)
     function message_parsePlayerInfo(jsonVal) result(res)
         class(JsonValue), pointer, intent(in) :: jsonVal

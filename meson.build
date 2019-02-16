@@ -20,6 +20,7 @@ sources = [
     'src/utils.f90',
     'src/vector.f90',
     'src/json.f90',
+    'src/proto_version.f90',
     'src/message.f90',
     'src/client.f90'
 ]

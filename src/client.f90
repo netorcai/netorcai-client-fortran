@@ -7,6 +7,7 @@ module netorcai_client
     use netorcai_socket
     use netorcai_message
     use netorcai_json
+    use netorcai_proto_version
 
     implicit none
     private
@@ -126,7 +127,7 @@ contains
 
         jsonMsg = this%recvJson()
         call client_checkMessageType(jsonMsg%getRoot(), [String("LOGIN_ACK")])
-        res = LoginAckMessage()
+        res = message_parseLoginAckMessage(jsonMsg%getRoot())
     end function client_readLoginAck
 
     ! Reads a GAME_STARTS message on the client socket. Crash on error.
@@ -240,6 +241,7 @@ contains
         call msg%add("message_type", json_makeString("LOGIN"))
         call msg%add("nickname", json_makeString(nickname))
         call msg%add("role", json_makeString(role))
+        call msg%add("metaprotocol_version", json_makeString(metaprotocolVersion))
 
         call this%sendJson(msg)
         call msg%destroy()
