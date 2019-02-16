@@ -70,14 +70,24 @@ contains
     function client_recvString(this) result(contentBuf)
         class(Client), intent(inout) :: this
         character(len=:), allocatable :: contentBuf
-        character(len=2) :: contentSizeBuf
-        integer :: contentSize
+        character(len=4) :: contentSizeBuf
+        integer :: contentSize, p1, p2, p3, p4
 
         ! Read content size
         call this%sock%recv_all(contentSizeBuf)
 
         ! TODO: check endianness
-        contentSize = int(ichar(contentSizeBuf(1:1))) + int(ichar(contentSizeBuf(2:2))) * 256
+        p1 = int(ichar(contentSizeBuf(1:1)))
+        p2 = int(ichar(contentSizeBuf(2:2)))
+        p3 = int(ichar(contentSizeBuf(3:3)))
+        p4 = int(ichar(contentSizeBuf(4:4)))
+
+        if(p4 /= 0) then
+            print *, "Error: protocol parsing error (too big json)"
+            stop 1
+        end if
+
+        contentSize = p1 + p2 * 256 + p3 * 65536
 
         allocate(character(contentSize) :: contentBuf)
         call this%sock%recv_all(contentBuf)
@@ -202,18 +212,20 @@ contains
     subroutine client_sendString(this, message)
         class(Client), intent(inout) :: this
         character(len=*), intent(in) :: message
-        character(len=2) :: contentSizeBuf
+        character(len=4) :: contentSizeBuf
         integer :: contentSize
 
         contentSize = len(message) + 1
-        if(contentSize >= 65536) then
-            print *, "Error: content size ", contentSize, " does not fit in 16 bits"
+        if(contentSize >= 16777216) then
+            print *, "Error: content size ", contentSize, " does not fit in 24 bits"
             stop 1
         end if
 
         ! TODO: check endianess
         contentSizeBuf(1:1) = char(mod(contentSize, 256))
-        contentSizeBuf(2:2) = char(contentSize / 256)
+        contentSizeBuf(2:2) = char(mod(contentSize / 256, 256))
+        contentSizeBuf(3:3) = char(mod(contentSize / 65536, 256))
+        contentSizeBuf(4:4) = char(0)
 
         call this%sock%send_all(contentSizeBuf)
         call this%sock%send_all(message)
