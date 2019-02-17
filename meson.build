@@ -7,6 +7,11 @@ project('netorcai_fortran', 'fortran', version: '1.0.0')
 # (they MAY happend but never in practice and cannot be avoided)
 if meson.get_compiler('fortran').get_id() == 'gcc'
     fArgs = ['-Wno-maybe-uninitialized']
+
+    # By default GCC check nothing in FORTRAN
+    if get_option('buildtype') == 'debug'
+        fArgs += ['-fcheck=all']
+    endif
 else
     fArgs = []
 endif

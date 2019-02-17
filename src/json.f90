@@ -352,7 +352,13 @@ contains
         logical :: escape
         integer :: unicodeChar
 
-        if(offset > len(jsonStr) .or. jsonStr(offset:offset) /= '"') then
+        if(offset > len(jsonStr)) then
+            fail = .true.
+            return
+        end if
+
+        ! Funy note: FORTRAN does not support the lazy evaluation of conditionals...
+        if(jsonStr(offset:offset) /= '"') then
             fail = .true.
             return
         end if
