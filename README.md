@@ -2,7 +2,7 @@
 [![Coverage Status](https://img.shields.io/codecov/c/github/netorcai/netorcai-client-fortran/master.svg?maxAge=600)](https://codecov.io/github/netorcai/netorcai-client-fortran)
 
 netorcai-client-fortran
-=================
+=======================
 FORTRAN 2003 version of the [netorcai] client library.
 
 This client make few assumptions (that will not be fixed unless someone propose a pull request to solve them):
@@ -31,6 +31,11 @@ ninja -C build test
 # Install the library
 ninja -C build install
 ```
+
+Usage
+=====
+
+Feel free to look at [hello world examples](./examples) to build your own clients.
 
 [netorcai]: https://github.com/netorcai/
 [Meson]: https://mesonbuild.com/
