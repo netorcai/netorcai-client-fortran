@@ -75,7 +75,7 @@ contains
         call netorcaiProcess%writeLine("start")
 
         doInit = gameLogic%readDoInit()
-        jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+        jsonDoc = json_parse('{"all_clients": {"gl": "FORTRAN"}}')
         call gameLogic%sendDoInitAck(jsonDoc%getRoot())
         deallocate(jsonDoc)
         gameStarts = player%readGameStarts()
@@ -87,20 +87,20 @@ contains
                 call doTurn%playerActions(j)%actions%destroy() ! Free struct internal json data
             end do
 
-            jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+            jsonDoc = json_parse('{"all_clients": {"gl": "FORTRAN"}}')
             call gameLogic%sendDoTurnAck(jsonDoc%getRoot(), -1)
             deallocate(jsonDoc)
 
             if(.not. player%readTurn(turn)) exit ! Break the game loop if needed
             call turn%gameState%destroy() ! Free struct internal json data
 
-            jsonDoc = json_parse('[{"player": "D"}]')
+            jsonDoc = json_parse('[{"player": "FORTRAN"}]')
             call player%sendTurnAck(turn%turnNumber, jsonDoc%getRoot())
             deallocate(jsonDoc)
         end do
 
         doTurn = gameLogic%readDoTurn()
-        jsonDoc = json_parse('{"all_clients": {"gl": "D"}}')
+        jsonDoc = json_parse('{"all_clients": {"gl": "FORTRAN"}}')
         call gameLogic%sendDoTurnAck(jsonDoc%getRoot(), -1)
         deallocate(jsonDoc)
 
