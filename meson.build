@@ -1,5 +1,5 @@
 # Composition failure bug
-# See: https://github.com/mesonbuild/meson/issues/1489
+# See issue: https://github.com/mesonbuild/meson/issues/1489
 
 project('netorcai_fortran', 'fortran', version: '1.0.0')
 
@@ -32,7 +32,28 @@ netorcai_fortran_dep = declare_dependency(link_with: netorcai_fortran)
     # For the installation
 
 pkg = import('pkgconfig')
-pkg.generate(netorcai_fortran, description: 'Object-oriented FORTRAN client implementation of Netorcai')
+pkg.generate(name: 'netorcai-client-fortran',
+    libraries: netorcai_fortran,
+    version: meson.project_version(),
+    description: 'A netorcai client library written in object-oriented FORTRAN'
+)
+
+# Modules files are not installed properly
+# See issues: https://github.com/mesonbuild/meson/issues/4708
+prefix = get_option('prefix')
+libdir = get_option('libdir')
+includedir = get_option('includedir')
+moduleInstallDir = join_paths(prefix, includedir)
+objs = []
+foreach srcFile: sources
+    tmp = srcFile.split('src/')
+    assert(tmp.length() == 2 and tmp[0] == '', 'bad path')
+    objs += ['src_' + tmp[1] + '.o']
+endforeach
+install_subdir(join_paths('build', 'netorcai_fortran@sha'),
+                install_dir: moduleInstallDir,
+                strip_directory: true,
+                exclude_files: objs + ['libnetorcai_fortran.so.symbols'])
 
 
     # For the unit-tests
