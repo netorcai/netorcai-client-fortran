@@ -352,6 +352,10 @@ contains
         logical :: escape
         integer :: unicodeChar
 
+        res = ""
+        escape = .false.
+        fail = .false.
+
         if(offset > len(jsonStr)) then
             fail = .true.
             return
@@ -363,10 +367,7 @@ contains
             return
         end if
 
-        res = ""
-        escape = .false.
         offset = offset + 1
-        fail = .false.
 
         do
             if(offset > len(jsonStr)) then
