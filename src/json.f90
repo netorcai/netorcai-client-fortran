@@ -1133,6 +1133,17 @@ contains
         ! Do nothing
     end subroutine JsonValue_destroy
 
+    ! Copy strFrom into strTo at the position cur in strTo and update cur
+    ! Assume strTo is large enouth
+    subroutine putAt(strTo, strFrom, cur)
+        character(*), intent(inout) :: strTo
+        character(*), intent(in) :: strFrom
+        integer, intent(inout) :: cur
+
+        strTo(cur:cur+len(strFrom)-1) = strFrom
+        cur = cur + len(strFrom)
+    end subroutine putAt
+
     recursive function JsonNull_toString(this) result(res)
         class(JsonNull), intent(in) :: this
         character(:), allocatable :: res
@@ -1253,11 +1264,37 @@ contains
         end if
     end function escapeString
 
+    function escapedStringSize(inStr) result(res)
+        character(*), intent(in) :: inStr
+        integer :: res
+        integer :: i, c
+
+        res = len(inStr)
+
+        do i = 1, len(inStr)
+            c = ichar(inStr(i:i))
+
+            if(c == 8 .or. c == 9 .or. c == 10 .or. c == 13 &
+                    .or. c == ichar('\') .or. c == ichar('"')) then
+                res = res + 1
+            else if(c < 32 .or. c == 127 .or. c >= 128) then
+                res = res + 5
+            end if
+        end do
+    end function escapedStringSize
+
     recursive function JsonString_toString(this) result(res)
         class(JsonString), intent(in) :: this
         character(:), allocatable :: res
+        integer :: strLen, cur
 
-        res = '"' // escapeString(this%value) // '"'
+        strLen = escapedStringSize(this%value) + 2
+        allocate(character(len=strLen) :: res)
+
+        cur = 1
+        call putAt(res, '"', cur)
+        call putAt(res, escapeString(this%value), cur)
+        call putAt(res, '"', cur)
     end function JsonString_toString
 
     recursive function JsonString_clone(this) result(res)
@@ -1281,20 +1318,36 @@ contains
         class(JsonArray), intent(in) :: this
         character(:), allocatable :: res
         type(JsonItem) :: item
-        integer :: i
+        integer :: i, cur, strLen
 
-        res = '['
+        strLen = 2
 
+        ! Precompute the size to avoid O(n²) concatenations
+        ! But recompute the toString of child twice
         do i = 1, this%value%size()
             if(i > 1) then
-                res = res // ","
+                strLen = strLen + 1
             end if
 
             item = this%getItem(i)
-            res = res // item%value%toString()
+            strLen = strLen + len(item%value%toString())
         end do
 
-        res = res // ']'
+        allocate(character(len=strLen) :: res)
+
+        cur = 1
+        call putAt(res, '[', cur)
+
+        do i = 1, this%value%size()
+            if(i > 1) then
+                call putAt(res, ',', cur)
+            end if
+
+            item = this%getItem(i)
+            call putAt(res, item%value%toString(), cur)
+        end do
+
+        call putAt(res, ']', cur)
     end function JsonArray_toString
 
     recursive function JsonArray_clone(this) result(res)
@@ -1365,23 +1418,40 @@ contains
     recursive function JsonObject_toString(this) result(res)
         class(JsonObject), intent(in) :: this
         character(:), allocatable :: res
-        character(:), allocatable :: serializedName
         type(JsonPair) :: item
-        integer :: i
+        integer :: i, cur, strLen
 
-        res = '{'
+        strLen = 2
 
+        ! Precompute the size to avoid O(n²) concatenations
+        ! But recompute the toString of child twice
         do i = 1, this%value%size()
             if(i > 1) then
-                res = res // ","
+                strLen = strLen + 1
             end if
 
             item = this%getItem(i)
-            serializedName = '"' // escapeString(item%name) // '"'
-            res = res // serializedName // ':' // item%value%toString()
+            strLen = strLen + escapedStringSize(item%name) + len(item%value%toString()) + 3
         end do
 
-        res = res // '}'
+        allocate(character(len=strLen) :: res)
+
+        cur = 1
+        call putAt(res, '{', cur)
+
+        do i = 1, this%value%size()
+            if(i > 1) then
+                call putAt(res, ',', cur)
+            end if
+
+            item = this%getItem(i)
+            call putAt(res, '"', cur)
+            call putAt(res, escapeString(item%name), cur)
+            call putAt(res, '":', cur)
+            call putAt(res, item%value%toString(), cur)
+        end do
+
+        call putAt(res, '}', cur)
     end function JsonObject_toString
 
     recursive function JsonObject_clone(this) result(res)
