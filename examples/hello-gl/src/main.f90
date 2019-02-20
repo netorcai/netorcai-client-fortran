@@ -15,7 +15,7 @@ program hello_gl
     type(DoInitMessage) :: doInit
     type(DoTurnMessage) :: doTurn
     class(JsonDocument), allocatable :: jsonDoc
-    integer :: turn
+    integer :: turn, j
 
     call c%init()
 
