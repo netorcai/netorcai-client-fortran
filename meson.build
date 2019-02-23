@@ -6,7 +6,7 @@ project('netorcai_fortran', 'fortran', version: '1.0.0', meson_version: '>=0.47.
 # Remove stupid complaints of GCC in FORTRAN
 # (they MAY happend but never in practice and cannot be avoided)
 if meson.get_compiler('fortran').get_id() == 'gcc'
-    fArgs = ['-Wno-maybe-uninitialized']
+    fArgs = ['-Wno-maybe-uninitialized', '-Wno-unused-dummy-argument']
 
     # By default GCC check nothing in FORTRAN
     if get_option('buildtype') == 'debug'
