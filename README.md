@@ -7,12 +7,14 @@ FORTRAN 2003 version of the [netorcai] client library.
 
 This client make few assumptions (that will not be fixed unless someone propose a pull request to solve them):
 - The client target 64 bits Linux systems only (wrapping system calls is needed to handle sockets and processes in FORTRAN)
-- UTF-8 is not supported (not nativelly by the language nor actually supported by gfortran currently): non-ascii unicode characters are replaced by '?' ones
+- UTF-8 is not supported (not nativelly by the language, supported by gfortran but its experimental and the resulting code is cumbersome): non-ascii unicode characters are replaced by '?' ones
 - FORTRAN 2003 is used for the following reasons:
     - Standard/Working variable-length strings (introduced in FORTRAN 2003) are not available before and fixed strings results in both an insane API and an innefficient parser
     - Object-oriented (introduced in FORTRAN 2003) provide a cleaner and more usable API
     - It would be hard to write internal data structures (eg. variable-length generic arrays) similar to those required for the parser that would otherwise be much slower (with a quadratic complexity rather than simply linear)
     - FORTRAN 2008 is not currently fully supported by gfortran
+    
+This client has been successfully tested with the GNU FORTRAN compiler (gfortran).
 
 Installation
 ============
