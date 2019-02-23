@@ -19,6 +19,7 @@ module netorcai_client
         procedure :: init => client_init
         procedure :: close => client_close
         procedure :: connect => client_connect
+        procedure :: recvUtf8 => client_recvUtf8
         procedure :: recvString => client_recvString
         procedure :: recvJson => client_recvJson
         procedure :: readLoginAck => client_readLoginAck
@@ -93,12 +94,73 @@ contains
         call this%sock%recv_all(contentBuf)
     end function client_recvString
 
+    ! Reads and return a string message on the client socket. Crash on error.
+    ! Unicode code points that are not ascii are replaced with ?
+    ! Return an allocated string that should be deallocated by the user.
+    function client_recvUtf8(this) result(res)
+        class(Client), intent(inout) :: this
+        character(:), allocatable :: res
+        character(:), allocatable :: tmpStr
+        integer :: i, j, codePoint, codePoints
+
+        i = 1
+        codePoints = 0
+        tmpStr = this%recvString()
+
+        ! Count code points
+        do while(i <= len(tmpStr))
+            codePoint = ichar(tmpStr(i:i))
+
+            if(codePoint >= 128) then
+                if(codePoint >= 192) then
+                    if(codePoint < 224) then
+                        i = i + 2
+                    else if(codePoint < 240) then
+                        i = i + 3
+                    else if(codePoint < 248) then
+                        i = i + 4
+                    else if(codePoint < 256) then
+                        print *, 'Error: invalid utf-8 code point found (too long)'
+                    else
+                        print *, 'Error: internal logic error (bad compiler string encoding)'
+                        stop 1
+                    end if
+                else
+                    print *, 'Error: invalid utf-8 code point found (no header)'
+                    stop 1
+                end if
+            else
+                i = i + 1
+            end if
+
+            codePoints = codePoints + 1
+        end do
+
+        allocate(character(len=codePoints) :: res)
+        i = 1
+
+        ! Produce an ASCII string containing '?' for each non-ASCII characters
+        do j = 1, codePoints
+            codePoint = ichar(tmpStr(i:i))
+
+            if(codePoint >= 128) then
+                i = i + 2
+                if(codePoint >= 224) i = i + 1
+                if(codePoint >= 240) i = i + 1
+                res(j:j) = '?'
+            else
+                i = i + 1
+                res(j:j) = achar(codePoint)
+            end if
+        end do
+    end function client_recvUtf8
+
     ! Reads a JSON message on the client socket. Crash on error.
     function client_recvJson(this) result(jsonDoc)
         class(Client), intent(inout) :: this
         type(JsonDocument), allocatable :: jsonDoc
 
-        jsonDoc = json_parse(this%recvString())
+        jsonDoc = json_parse(this%recvUtf8())
     end function client_recvJson
 
     subroutine client_checkMessageType(jsonMsg, targetMessageTypes)
@@ -125,7 +187,7 @@ contains
             if(.not. found) then
                 print *, "Unexpected message received: ", messageType
                 stop 1
-            endif
+            end if
         end if
     end subroutine client_checkMessageType
 
