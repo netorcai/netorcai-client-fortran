@@ -769,10 +769,12 @@ contains
         jsonValue => doc%getRoot()
         call jsonValue%get(outJsonStr, fail)
         call test%assert(.not. fail)
-        call test%assert(outJsonStr == '常' .or. outJsonStr == '?')
+        !call test%assert(outJsonStr == '常' .or. outJsonStr == '?')
+        call test%assert(outJsonStr == '?')
         outJsonStr = doc%toString()
         outJsonStr = trim(adjustl(outJsonStr))
-        call test%assert(outJsonStr == '"常"' .or. outJsonStr == '"?"' .or. outJsonStr == '"\u5e38"')
+        !call test%assert(outJsonStr == '"常"' .or. outJsonStr == '"?"' .or. outJsonStr == '"\u5e38"')
+        call test%assert(outJsonStr == '"?"' .or. outJsonStr == '"\u5e38"')
         deallocate(doc)
 
         inJsonStr = ' { "\u0020in\u0020": "\u0020out\u0020" } '
