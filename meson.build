@@ -1,7 +1,7 @@
 # Composition failure bug
 # See issue: https://github.com/mesonbuild/meson/issues/1489
 
-project('netorcai_fortran', 'fortran', version: '1.0.0')
+project('netorcai_fortran', 'fortran', version: '1.0.0', meson_version: '>=0.47.0')
 
 # Remove stupid complaints of GCC in FORTRAN
 # (they MAY happend but never in practice and cannot be avoided)
